@@ -1,8 +1,11 @@
 package bgu.spl.net.api;
 
+import bgu.spl.net.srv.Connections;
+import bgu.spl.net.srv.ConnectionsImpl;
+
 public interface MessagingProtocol<T> {
     
-    void start(int connectionId, Connections<T> connections);
+    void start(int connectionId, ConnectionsImpl<T> connections);
     /**
      * process the given message 
      * @param msg the received message
