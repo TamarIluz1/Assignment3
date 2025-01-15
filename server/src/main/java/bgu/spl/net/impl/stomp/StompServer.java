@@ -7,6 +7,8 @@ public class StompServer {
     public static void main(String[] args) {
         // TODO: implement this
 
+        // Added all this main code by Tamar 15/1
+
         if (args.length < 2) {
             System.out.println("Usage: StompServer <port> <tpc/reactor>");
             return;
@@ -27,23 +29,13 @@ public class StompServer {
 
 
     private static void startTPCServer(int port) {
-        Server.threadPerClient(
-                port,
-                () -> new StompMessagingProtocolImpl(), // Protocol factory
-                StompConnectionHandler::new               // ConnectionHandler factory
-        ).serve();
+        //TODO: implement this added func by Tamar 15/1
         
     }
 
 
     private static void startReactorServer(int port) {
-        int numThreads = Runtime.getRuntime().availableProcessors(); // Adjust threads dynamically
-        Server.reactor(
-                numThreads,
-                port,
-                () -> new StompMessagingProtocolImpl(), // Protocol factory
-                StompConnectionHandler::new               // ConnectionHandler factory
-        ).serve();
+        //TODO: implement this added func by Tamar 15/1
     }
     
 

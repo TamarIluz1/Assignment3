@@ -1,20 +1,25 @@
 package bgu.spl.net.api;
 
 import bgu.spl.net.srv.ConnectionsImpl;
+import java.util.Map;
+import java.util.HashMap;
 
-public class StompMessagingProtocolImpl implements StompMessagingProtocol<String> {
+//Added this class by Tamar 15/1
+
+public class StompMessagingProtocolImpl<T> implements StompMessagingProtocol<T> {
     private int connectionId;
-    private ConnectionsImpl<String> connections;
+    private ConnectionsImpl<T> connections;
     private boolean shouldTerminate = false;
+    private Map<String, String> subscriptions = new HashMap<>();
 
     @Override
-    public void start(int connectionId, ConnectionsImpl<String> connections) {
+    public void start(int connectionId, ConnectionsImpl<T> connections) {
         this.connectionId = connectionId;
         this.connections = connections;
     }
 
     @Override
-    public void process(String message) {
+    public void process(T message) {
         // Parse the STOMP frame and execute corresponding actions
         String command = extractCommand(message);
         switch (command) {
@@ -35,27 +40,64 @@ public class StompMessagingProtocolImpl implements StompMessagingProtocol<String
         }
     }
 
-    private void handleConnect(String message) {
+    private String extractCommand(T message) {
+        // Extract the command from the message
+        String msgStr = message.toString();
+        int endOfCommand = msgStr.indexOf('\n');
+        return msgStr.substring(0, endOfCommand).trim();
+    }
+
+    private void handleConnect(T message) {
         // Handle CONNECT logic and respond with CONNECTED frame
         connections.send(connectionId, "CONNECTED\nversion:1.2\n\n");
     }
 
-    private void handleSubscribe(String message) {
+    private void handleSubscribe(T message) {
         // Handle SUBSCRIBE logic
+        String msgStr = message.toString();
+        String[] lines = msgStr.split("\n");
+        String destination = null;
+        for (String line : lines) {
+            if (line.startsWith("destination:")) {
+                destination = line.substring("destination:".length()).trim();
+                break;
+            }
+        }
+        if (destination != null) {
+            subscriptions.put(destination, Integer.toString(connectionId));
+            connections.send(connectionId, "RECEIPT\nreceipt-id:sub-" + connectionId + "\n\n");
+        } else {
+            connections.send(connectionId, "ERROR\nmessage: Missing destination header\n\n");
+        }
     }
 
-    private void handleSend(String message) {
+    private void handleSend(T message) {
         // Handle SEND logic (publish to channels)
+        String msgStr = message.toString();
+        String[] lines = msgStr.split("\n");
+        String destination = null;
+        StringBuilder body = new StringBuilder();
+        boolean bodyStarted = false;
+        for (String line : lines) {
+            if (line.startsWith("destination:")) {
+                destination = line.substring("destination:".length()).trim();
+            } else if (line.isEmpty()) {
+                bodyStarted = true;
+            } else if (bodyStarted) {
+                body.append(line).append("\n");
+            }
+        }
+        if (destination != null) {
+            connections.send(destination, body.toString());
+        } else {
+            connections.send(connectionId, "ERROR\nmessage: Missing destination header\n\n");
+        }
     }
 
-    private void handleDisconnect(String message) {
+    private void handleDisconnect(T message) {
         // Handle DISCONNECT logic and terminate the connection
         shouldTerminate = true;
         connections.disconnect(connectionId);
-    }
-
-    private String extractCommand(String message) {
-        return message.split("\n")[0]; // Assume first line is the command
     }
 
     @Override
