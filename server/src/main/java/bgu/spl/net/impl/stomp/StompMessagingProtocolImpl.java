@@ -1,5 +1,6 @@
-package bgu.spl.net.api;
+package bgu.spl.net.impl.stomp;
 
+import bgu.spl.net.api.StompMessagingProtocol;
 import bgu.spl.net.srv.ConnectionsImpl;
 import java.util.Map;
 import java.util.HashMap;
