@@ -24,7 +24,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
     public boolean send(int connectionId, T msg) {
         ConnectionHandler<T> handler = activeConnections.get(connectionId);
         if (handler != null) {
-            handler.send(msg);
+            handler.send(connectionId,msg);
             return true;
         }
         return false;

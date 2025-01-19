@@ -29,17 +29,21 @@ public class StompServer {
 
 
     private static void startTPCServer(int port) {
-        //TODO: implement this added func by Tamar 15/1
-        
+        Server.threadPerClient(
+            port, // port
+            ()-> new StompProtocol(), // protocol factory
+            StompEncoderDecoder::new // message encoder decoder factory
+        ).serve();
     }
-
 
     private static void startReactorServer(int port) {
-        //TODO: implement this added func by Tamar 15/1
+        Server.reactor(
+            Runtime.getRuntime().availableProcessors(),
+            port, // port
+            ()-> new StompProtocol(), // protocol factory
+            StompEncoderDecoder::new // message encoder decoder factory
+        ).serve();
     }
     
-
-
-
 
 }

@@ -1,6 +1,5 @@
 package bgu.spl.net.api;
 
-import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;// Added the refrence by Tamar 15/1 
 
 public interface StompMessagingProtocol<T>  {
@@ -9,7 +8,7 @@ public interface StompMessagingProtocol<T>  {
 	**/
     void start(int connectionId, ConnectionsImpl<T> connections);//changed fron Connections<T> to ConnectionsImpl<T> by Tamar 15/1
     
-    void process(T message);
+    T process(T message);
 	
 	/**
      * @return true if the connection should be terminated
