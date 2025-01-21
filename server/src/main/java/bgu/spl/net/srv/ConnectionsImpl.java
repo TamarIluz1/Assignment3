@@ -20,7 +20,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     //NEW ARCHITECTURE BY NOAM
     private ConcurrentHashMap<String, User<T>> UserDetails; 
-    private ConcurrentMap<String, ArrayList<Integer>> channelSubscribers;
+    private ConcurrentMap<String, Set<Integer>> channelSubscribers;
     private ConcurrentMap<Integer, ConnectionHandler<T>> ActiveConnectionsToHandler;
     private AtomicInteger msgIdCounter = new AtomicInteger();
 
@@ -46,7 +46,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     @Override
     public void send(String channel, T msg) {
-        ArrayList<Integer> subscribers = channelSubscribers.get(channel);
+        Set<Integer> subscribers = channelSubscribers.get(channel);
         if (subscribers != null) {
             for (int connectionId : subscribers) {
                 send(connectionId, msg);
@@ -88,16 +88,16 @@ public class ConnectionsImpl<T> implements Connections<T> {
     }
 
     public void subscribe(int connectionId, String channel) {
-        topicSubscribers.putIfAbsent(channel, new HashSet<>());
-        topicSubscribers.get(channel).add(connectionId);
+        channelSubscribers.putIfAbsent(channel, new HashSet<>());
+        channelSubscribers.get(channel).add(connectionId);
     }
 
     public void unsubscribe(int connectionId, String channel) {
-        Set<Integer> subscribers = topicSubscribers.get(channel);
+        Set<Integer> subscribers = channelSubscribers.get(channel);
         if (subscribers != null) {
             subscribers.remove(connectionId);
             if (subscribers.isEmpty()) {
-                topicSubscribers.remove(channel);
+                channelSubscribers.remove(channel);
             }
         }
     }
