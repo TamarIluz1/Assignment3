@@ -1,6 +1,8 @@
 package bgu.spl.net.srv;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,21 +20,23 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     //NEW ARCHITECTURE BY NOAM
     private ConcurrentHashMap<String, User<T>> UserDetails; 
-    private ConcurrentMap<String, Integer> userToConnectionID;
+    private ConcurrentMap<String, ArrayList<Integer>> channelSubscribers;
     private ConcurrentMap<Integer, ConnectionHandler<T>> ActiveConnectionsToHandler;
     private AtomicInteger msgIdCounter = new AtomicInteger();
 
     public ConnectionsImpl() {
-        activeConnections = new ConcurrentHashMap<>();
-        topicSubscribers = new ConcurrentHashMap<>();
-        logDetails = new ConcurrentHashMap<>();
+        UserDetails = new ConcurrentHashMap<>();
+        channelSubscribers = new ConcurrentHashMap<>();
+        ActiveConnectionsToHandler = new ConcurrentHashMap<>();
+        msgIdCounter.set(0);
     }
+
 
 
     // Send a regularmessage
     @Override
     public boolean send(int connectionId, T msg) {
-        ConnectionHandler<T> handler = activeConnections.get(connectionId);
+        ConnectionHandler<T> handler = ActiveConnectionsToHandler.get(connectionId);
         if (handler != null) {
             handler.send(connectionId,msg);
             return true;
@@ -42,7 +46,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     @Override
     public void send(String channel, T msg) {
-        Set<Integer> subscribers = topicSubscribers.get(channel);
+        ArrayList<Integer> subscribers = channelSubscribers.get(channel);
         if (subscribers != null) {
             for (int connectionId : subscribers) {
                 send(connectionId, msg);
@@ -53,10 +57,10 @@ public class ConnectionsImpl<T> implements Connections<T> {
     public void loginUser(int connectionId, String username, String password){
         // logic: - check if some user is already logged in
         // if not, check whether the username and password exist
-        if (!userToConnectionID.containsKey(username)){
+        if (!UserDetails.containsKey(username)){
             if (checkLogin(username, password)){
-                userToConnectionID.put(username, connectionId);
-                ActiveConnectionsToHandler.put(connectionId, activeConnections.get(connectionId));
+                UserDetails.get(username).setLoggedIn(true);
+                // TODO WHERE DO WE ADD NEW CONNECTION HANDLER
                 send(connectionId, "CONNECTED\nversion:1.2\n\n^@");
             } else {
                 send(connectionId, "ERROR\nmessage:Wrong password\n\n^@");
@@ -72,7 +76,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     @Override
     public void disconnect(int connectionId) {
-        activeConnections.remove(connectionId);
+        ActiveConnectionsToHandler.remove(connectionId);
         // Remove from all subscribed topics
         for (Set<Integer> subscribers : topicSubscribers.values()) {
             subscribers.remove(connectionId);
@@ -80,7 +84,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
     }
 
     public void addConnection(int connectionId, ConnectionHandler<T> handler) {
-        activeConnections.put(connectionId, handler);
+        ActiveConnectionsToHandler.put(connectionId, handler);
     }
 
     public void subscribe(int connectionId, String channel) {
