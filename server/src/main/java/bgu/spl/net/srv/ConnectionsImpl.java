@@ -47,16 +47,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
         return false;
     }
 
-    public boolean sendMessage(int connectionId, Frame msg) {
-        ConnectionHandler<T> handler = ActiveConnectionsToHandler.get(connectionId);
-        if (handler != null) {
-            //TODO VERY BAD
-            msg.addHeader("subscriber", ActiveConnectionsToHandler.get(connectionId).toString());
-            handler.send(connectionId,msg);
-            return true;
-        }
-        return false;
-    }
+
     @Override
     public void send(String channel, T msg) {
         Set<Integer> subscribers = channelSubscribers.get(channel);
@@ -65,54 +56,6 @@ public class ConnectionsImpl<T> implements Connections<T> {
                 send(connectionId, msg);
             }
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    public Frame loginUser(int connectionId, String username, String password){
-        // logic: - check if some user is already logged in
-        // if not, check whether the username and password exist
-        Frame toReturn = null;
-        for (User<T> user : userDetails.values()){
-            if (user.isLoggedIn() && user.getConnectionId().equals(connectionId)){
-                toReturn = new Frame("ERROR\nmessage:The client is already logged in, log out before trying again\n\n^@");
-                send(connectionId,(T)toReturn);
-                return toReturn;
-            }
-        }
-        // user already logged
-        if (userDetails.get(username).isLoggedIn()){
-            toReturn = new Frame("ERROR\nmessage:User already logged in\n\n^@");
-            send(connectionId,(T) toReturn);
-            return toReturn;
-        }
-        
-        if (userDetails.containsKey(username)){
-            //trying to login to existing user
-            if (checkLogin(username, password)){
-                User<T> logged = userDetails.get(username);
-                logged.setLoggedIn(true);
-                logged.setConnectionId(connectionId);
-                logged.setCH(ActiveConnectionsToHandler.get(connectionId));
-                // TODO NOT SURE IF THIS IS LEGIT
-                toReturn = new Frame("CONNECTED\nversion:1.2\n\n^@");
-                send(connectionId,(T)toReturn);
-                return toReturn;
-                
-            } else {
-                toReturn = new Frame("ERROR\nmessage:Wrong password\n\n^@");
-                send(connectionId,(T)toReturn);
-                return toReturn;
-            }
-
-        }
-        else{
-            // new user
-            userDetails.put(username, new User<T>(username, password, ActiveConnectionsToHandler.get(connectionId), connectionId));
-            toReturn = new Frame("CONNECTED\nversion:1.2\n\n^@");
-            send(connectionId,(T) toReturn);
-            return toReturn;
-        }
-
     }
 
     public boolean checkLogin(String username, String password){
@@ -167,6 +110,10 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     public Set<Integer> getSubscribers(String channel){
         return channelSubscribers.get(channel);
+    }
+
+    public ConnectionHandler getCHbyConnectionID(int connectionId){
+        return ActiveConnectionsToHandler.get(connectionId);
     }
     
 }

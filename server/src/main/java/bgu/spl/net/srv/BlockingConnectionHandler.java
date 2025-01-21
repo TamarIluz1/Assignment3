@@ -17,6 +17,7 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
     private BufferedInputStream in;
     private BufferedOutputStream out;
     private volatile boolean connected = true;
+    private User<T> user;
 
     public BlockingConnectionHandler(Socket sock, MessageEncoderDecoder<T> reader, StompMessagingProtocol<T> protocol) {
         this.sock = sock;
@@ -24,6 +25,7 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
         this.protocol = protocol;
         //Todo  - check if 
         this.protocol.start(0, new ConnectionsImpl<T>());
+        user = null;
     }
 
     @Override
@@ -71,5 +73,12 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
                 ioException.printStackTrace();
             }
         }
+    }
+
+    public void setUser(User<T> user) {
+        this.user = user;
+    }
+    public User<T> getUser() {
+        return user;
     }
 }

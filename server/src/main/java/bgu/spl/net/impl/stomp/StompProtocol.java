@@ -1,6 +1,7 @@
 package bgu.spl.net.impl.stomp;
 
 import bgu.spl.net.api.StompMessagingProtocol;
+import bgu.spl.net.srv.ConnectionHandler;
 import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
 import bgu.spl.net.srv.User;
@@ -51,7 +52,6 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         }
     }
 
-
     private String handleConnect(Frame frame) {
         logger.info("Handling CONNECT frame");
         String acceptVersion = frame.getHeaders().get("accept-version");
@@ -80,7 +80,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
                 logged.setLoggedIn(true);
                 logged.setConnectionId(connectionId);
                 // Send CONNECTED frame back to client
-                Frame connectedFrame = new Frame("CONNECTED");
+                Frame connectedFrame = new Frame("CONNECT");
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);
                 connections.send(connectionId, connectedFrame.toString());
@@ -89,10 +89,14 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             }
             
         } else {
-            return handleError("ERROR\nmessage:Wrong password or username\n\n^@");
+            createUser(new User(username, password, (ConnectionHandler)connections.getCHbyConnectionID(connectionId), connectionId));
         }
         return null;
 
+    }
+
+    public void createUser(User u) {
+        connections.getUsers().put(u.getUsername(), u);
     }
 
 
