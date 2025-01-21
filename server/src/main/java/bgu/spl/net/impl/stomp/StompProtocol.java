@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 import java.util.HashMap;
 import java.util.Set;
+import java.util.HashSet;
 
 //Added this class by Tamar 15/1
 
@@ -19,8 +20,8 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     private int connectionId;
     private ConnectionsImpl<String> connections;
     private Map<String, String> subscriptionsIdtoChannelName = new HashMap<>();
-    private Map<String, Set<String>> ChanneltoSubscriptions = new HashMap<>();
-    private Map<String, User> subscriptionsToUsers = new HashMap<>();
+    private Map<String, Set<String>> channeltoSubscriptions = new HashMap<>();
+    private Map<String, ConnectionHandler> subscriptionsToHandlers = new HashMap<>();
     private boolean shouldTerminate = false;
     
 
@@ -116,6 +117,15 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             return handleError("Missing destination or id in SUBSCRIBE frame");
         }
         subscriptionsIdtoChannelName.put(id, destination);
+        if (!channeltoSubscriptions.containsKey(destination)) {
+            channeltoSubscriptions.get(destination).add(id);
+        }
+        else{
+            channeltoSubscriptions.put(destination, new HashSet<String>());
+            channeltoSubscriptions.get(destination).add(id);
+        }
+        subscriptionsToHandlers.put(id, connections.getCHbyConnectionID(connectionId));
+        
         logger.info("Subscribed to destination: " + destination + " with ID: " + id);
         // Acknowledge subscription
         return null;
@@ -127,7 +137,10 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         if (id == null || !subscriptionsIdtoChannelName.containsKey(id)) {
             return handleError("Invalid or missing id in UNSUBSCRIBE frame");
         }
+        String channelName = subscriptionsIdtoChannelName.get(id);
         subscriptionsIdtoChannelName.remove(id);
+        subscriptionsToHandlers.remove(id);
+        channeltoSubscriptions.get(channelName).remove(id);
         logger.info("Unsubscribed from ID: " + id);
         // Acknowledge unsubscription
         return null;
