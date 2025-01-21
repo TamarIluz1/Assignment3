@@ -3,6 +3,8 @@ package bgu.spl.net.impl.stomp;
 import bgu.spl.net.api.StompMessagingProtocol;
 import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
+import bgu.spl.net.srv.User;
+
 import java.util.Map;
 import java.util.logging.Logger;
 import java.util.HashMap;
@@ -49,32 +51,48 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         }
     }
 
+
     private String handleConnect(Frame frame) {
         logger.info("Handling CONNECT frame");
         String acceptVersion = frame.getHeaders().get("accept-version");
         String host = frame.getHeaders().get("host");
-
+        String username = frame.getHeaders().get("login");
+        String password = frame.getHeaders().get("passcode");
         if (acceptVersion == null || host == null) {
             return handleError("Missing accept-version or host in CONNECT frame");
         }
 
-        String givenPassword = connections.getPasswordByUsername(frame.getHeaders().get("login"));
-        if (givenPassword != null){
-            // the username required exists
-            if (givenPassword.equals(frame.getHeaders().get("passcode"))){
-                // the password is right! LOGIN
-            }
-            else{
-                // wrong password
+        for (User<String> user : connections.getUsers().values()) {
+            if (user.isLoggedIn() && user.getConnectionId() == connectionId) {
+                return handleError("ERROR\nmessage:The client is already logged in, log out before trying again\n\n^@");
             }
         }
-        // Send CONNECTED frame back to client
-        Frame connectedFrame = new Frame("CONNECTED");
-        connectedFrame.addHeader("version", "1.2");
-        connectedFrame.setBody(null);
-        connections.send(connectionId, connectedFrame.toString());
-        logger.info("Sent CONNECTED frame");
-        return connectedFrame.toString();
+
+        if (connections.getUserDetails(username).isLoggedIn()) {
+            return handleError("ERROR\nmessage:User already logged in\n\n^@");
+        }
+        
+        if (connections.getUsers().containsKey(username) ) {
+            // Trying to login to existing user
+            if (connections.checkLogin(username, password)) {
+                // login details are valid
+                User<String> logged = connections.getUserDetails(username);
+                logged.setLoggedIn(true);
+                logged.setConnectionId(connectionId);
+                // Send CONNECTED frame back to client
+                Frame connectedFrame = new Frame("CONNECTED");
+                connectedFrame.addHeader("version", "1.2");
+                connectedFrame.setBody(null);
+                connections.send(connectionId, connectedFrame.toString());
+                logger.info("Sent CONNECTED frame");
+                return connectedFrame.toString();
+            }
+            
+        } else {
+            return handleError("ERROR\nmessage:Wrong password or username\n\n^@");
+        }
+        return null;
+
     }
 
 
@@ -110,13 +128,19 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             return handleError("Invalid or missing destination in SEND frame");
         }
         // Broadcast message to all subscribers
-        Frame messageFrame = new Frame("MESSAGE");
-        messageFrame.addHeader("destination", destination);
-        messageFrame.addHeader("subscription", ""); // Add appropriate subscription id
-        messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
-        messageFrame.setBody(frame.getBody());
-        connections.send(destination, messageFrame.toString());
-        logger.info("Sent MESSAGE frame to destination: " + destination);
+        for (Integer connectionID : connections.getSubscribers(destination)) {
+            // we send the message to all the subscribers
+
+            Frame messageFrame = new Frame("MESSAGE");
+            messageFrame.addHeader("destination", destination);
+            //messageFrame.addHeader("subscription", ""); // TODO Add appropriate subscription id
+            messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
+            messageFrame.setBody(frame.getBody());
+            connections.send(destination, messageFrame.toString());
+            logger.info("Sent MESSAGE frame to destination: " + destination);
+            return messageFrame.toString();
+
+        }
         return null;
     }
 

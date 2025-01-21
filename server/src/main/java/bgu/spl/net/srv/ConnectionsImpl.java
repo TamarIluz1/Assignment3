@@ -9,6 +9,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import bgu.spl.net.impl.stomp.Frame;
+
 public class ConnectionsImpl<T> implements Connections<T> {
     //TODO: implement this class according to the instructions by Tamar 15/1
     
@@ -38,12 +40,23 @@ public class ConnectionsImpl<T> implements Connections<T> {
     public boolean send(int connectionId, T msg) {
         ConnectionHandler<T> handler = ActiveConnectionsToHandler.get(connectionId);
         if (handler != null) {
+
             handler.send(connectionId,msg);
             return true;
         }
         return false;
     }
 
+    public boolean sendMessage(int connectionId, Frame msg) {
+        ConnectionHandler<T> handler = ActiveConnectionsToHandler.get(connectionId);
+        if (handler != null) {
+            //TODO VERY BAD
+            msg.addHeader("subscriber", ActiveConnectionsToHandler.get(connectionId).toString());
+            handler.send(connectionId,msg);
+            return true;
+        }
+        return false;
+    }
     @Override
     public void send(String channel, T msg) {
         Set<Integer> subscribers = channelSubscribers.get(channel);
@@ -55,20 +68,22 @@ public class ConnectionsImpl<T> implements Connections<T> {
     }
 
     @SuppressWarnings("unchecked")
-    public void loginUser(int connectionId, String username, String password){
+    public Frame loginUser(int connectionId, String username, String password){
         // logic: - check if some user is already logged in
         // if not, check whether the username and password exist
-
+        Frame toReturn = null;
         for (User<T> user : userDetails.values()){
             if (user.isLoggedIn() && user.getConnectionId().equals(connectionId)){
-                send(connectionId,(T) "ERROR\nmessage:The client is already logged in, log out before trying again\n\n^@");
-                return;
+                toReturn = new Frame("ERROR\nmessage:The client is already logged in, log out before trying again\n\n^@");
+                send(connectionId,(T)toReturn);
+                return toReturn;
             }
         }
         // user already logged
         if (userDetails.get(username).isLoggedIn()){
-            send(connectionId,(T) "ERROR\nmessage:User already logged in\n\n^@");
-            return;
+            toReturn = new Frame("ERROR\nmessage:User already logged in\n\n^@");
+            send(connectionId,(T) toReturn);
+            return toReturn;
         }
         
         if (userDetails.containsKey(username)){
@@ -79,16 +94,23 @@ public class ConnectionsImpl<T> implements Connections<T> {
                 logged.setConnectionId(connectionId);
                 logged.setCH(ActiveConnectionsToHandler.get(connectionId));
                 // TODO NOT SURE IF THIS IS LEGIT
-                send(connectionId,(T) "CONNECTED\nversion:1.2\n\n^@");
+                toReturn = new Frame("CONNECTED\nversion:1.2\n\n^@");
+                send(connectionId,(T)toReturn);
+                return toReturn;
+                
             } else {
-                send(connectionId,(T) "ERROR\nmessage:Wrong password\n\n^@");
+                toReturn = new Frame("ERROR\nmessage:Wrong password\n\n^@");
+                send(connectionId,(T)toReturn);
+                return toReturn;
             }
 
         }
         else{
             // new user
             userDetails.put(username, new User<T>(username, password, ActiveConnectionsToHandler.get(connectionId), connectionId));
-            send(connectionId,(T) "CONNECTED\nversion:1.2\n\n^@");
+            toReturn = new Frame("CONNECTED\nversion:1.2\n\n^@");
+            send(connectionId,(T) toReturn);
+            return toReturn;
         }
 
     }
@@ -133,6 +155,18 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     public int getNewMessageID(){
         return msgIdCounter.getAndIncrement();
+    }
+
+    public User getUserDetails(String username){
+        return userDetails.get(username);
+    }
+
+    public ConcurrentHashMap<String, User<T>> getUsers(){
+        return userDetails;
+    }
+
+    public Set<Integer> getSubscribers(String channel){
+        return channelSubscribers.get(channel);
     }
     
 }
