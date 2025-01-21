@@ -5,10 +5,10 @@ import bgu.spl.net.srv.ConnectionHandler;
 import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
 import bgu.spl.net.srv.User;
-
 import java.util.Map;
 import java.util.logging.Logger;
 import java.util.HashMap;
+import java.util.Set;
 
 //Added this class by Tamar 15/1
 
@@ -18,7 +18,9 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
     private int connectionId;
     private ConnectionsImpl<String> connections;
-    private Map<String, String> subscriptions = new HashMap<>();
+    private Map<String, String> subscriptionsIdtoChannelName = new HashMap<>();
+    private Map<String, Set<String>> ChanneltoSubscriptions = new HashMap<>();
+    private Map<String, User> subscriptionsToUsers = new HashMap<>();
     private boolean shouldTerminate = false;
     
 
@@ -113,7 +115,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         if (destination == null || id == null) {
             return handleError("Missing destination or id in SUBSCRIBE frame");
         }
-        subscriptions.put(id, destination);
+        subscriptionsIdtoChannelName.put(id, destination);
         logger.info("Subscribed to destination: " + destination + " with ID: " + id);
         // Acknowledge subscription
         return null;
@@ -122,10 +124,10 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     private String handleUnsubscribe(Frame frame) {
         logger.info("Handling UNSUBSCRIBE frame");
         String id = frame.getHeaders().get("id");
-        if (id == null || !subscriptions.containsKey(id)) {
+        if (id == null || !subscriptionsIdtoChannelName.containsKey(id)) {
             return handleError("Invalid or missing id in UNSUBSCRIBE frame");
         }
-        subscriptions.remove(id);
+        subscriptionsIdtoChannelName.remove(id);
         logger.info("Unsubscribed from ID: " + id);
         // Acknowledge unsubscription
         return null;
@@ -134,7 +136,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     private String handleSend(Frame frame) {
         logger.info("Handling SEND frame");
         String destination = frame.getHeaders().get("destination");
-        if (destination == null || !subscriptions.containsValue(destination)) {
+        if (destination == null || !subscriptionsIdtoChannelName.containsValue(destination)) {
             return handleError("Invalid or missing destination in SEND frame");
         }
         // Broadcast message to all subscribers
