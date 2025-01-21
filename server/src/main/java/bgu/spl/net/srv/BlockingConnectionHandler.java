@@ -22,6 +22,7 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
         this.sock = sock;
         this.encdec = reader;
         this.protocol = protocol;
+        //Todo  - check if 
         this.protocol.start(0, new ConnectionsImpl<T>());
     }
 

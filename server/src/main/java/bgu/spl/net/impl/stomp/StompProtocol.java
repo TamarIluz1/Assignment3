@@ -113,7 +113,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         Frame messageFrame = new Frame("MESSAGE");
         messageFrame.addHeader("destination", destination);
         messageFrame.addHeader("subscription", ""); // Add appropriate subscription id
-        messageFrame.addHeader("message-id", ""); // Add appropriate message id
+        messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
         messageFrame.setBody(frame.getBody());
         connections.send(destination, messageFrame.toString());
         logger.info("Sent MESSAGE frame to destination: " + destination);

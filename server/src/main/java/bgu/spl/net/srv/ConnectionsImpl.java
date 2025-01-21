@@ -130,5 +130,9 @@ public class ConnectionsImpl<T> implements Connections<T> {
     public String getPasswordByUsername(String name){
         return userDetails.get(name).getPassword();
     }
+
+    public int getNewMessageID(){
+        return msgIdCounter.getAndIncrement();
+    }
     
 }
