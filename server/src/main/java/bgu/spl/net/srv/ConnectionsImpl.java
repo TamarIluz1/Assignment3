@@ -11,15 +11,15 @@ public class ConnectionsImpl<T> implements Connections<T> {
     //TODO: implement this class according to the instructions by Tamar 15/1
     
     // Map connectionId to its ConnectionHandler
-    private ConcurrentMap<Integer, ConnectionHandler<T>> activeConnections; 
+    //private ConcurrentMap<Integer, ConnectionHandler<T>> activeConnections; 
     
     // Map topic to set of subscribers (connectionIds)
-    private ConcurrentMap<String, Set<Integer>> topicSubscribers;
+    //private ConcurrentMap<String, Set<Integer>> topicSubscribers;
 
     //NEW ARCHITECTURE BY NOAM
-    private ConcurrentHashMap<String, String> logDetails; 
+    private ConcurrentHashMap<String, User<T>> UserDetails; 
     private ConcurrentMap<String, Integer> userToConnectionID;
-    private ConcurrentMap<Integer, ConnectionHandler<T>> ActiveConnectionToHandler;
+    private ConcurrentMap<Integer, ConnectionHandler<T>> ActiveConnectionsToHandler;
     private AtomicInteger msgIdCounter = new AtomicInteger();
 
     public ConnectionsImpl() {
@@ -50,8 +50,23 @@ public class ConnectionsImpl<T> implements Connections<T> {
         }
     }
 
-    public void loginUser(String username){
+    public void loginUser(int connectionId, String username, String password){
+        // logic: - check if some user is already logged in
+        // if not, check whether the username and password exist
+        if (!userToConnectionID.containsKey(username)){
+            if (checkLogin(username, password)){
+                userToConnectionID.put(username, connectionId);
+                ActiveConnectionsToHandler.put(connectionId, activeConnections.get(connectionId));
+                send(connectionId, "CONNECTED\nversion:1.2\n\n^@");
+            } else {
+                send(connectionId, "ERROR\nmessage:Wrong password\n\n^@");
+            }
 
+        }
+    }
+
+    public boolean checkLogin(String username, String password){
+        return logDetails.containsKey(username) && logDetails.get(username).equals(password);
     }
 
 
