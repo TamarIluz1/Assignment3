@@ -17,6 +17,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     private ConnectionsImpl<String> connections;
     private Map<String, String> subscriptions = new HashMap<>();
     private boolean shouldTerminate = false;
+    
 
     @Override
     public void start(int connectionId, ConnectionsImpl<String> connections) {
@@ -32,6 +33,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         String command = frame1.getCommand();
         logger.info("Command: " + command);
         switch (command) {
+            // TODO fix error in report
             case "CONNECT":
                 return handleConnect(frame1);
             case "SUBSCRIBE":
@@ -56,6 +58,16 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             return handleError("Missing accept-version or host in CONNECT frame");
         }
 
+        String givenPassword = connections.getPasswordByUsername(frame.getHeaders().get("login"));
+        if (givenPassword != null){
+            // the username required exists
+            if (givenPassword.equals(frame.getHeaders().get("passcode"))){
+                // the password is right! LOGIN
+            }
+            else{
+                // wrong password
+            }
+        }
         // Send CONNECTED frame back to client
         Frame connectedFrame = new Frame("CONNECTED");
         connectedFrame.addHeader("version", "1.2");
@@ -64,6 +76,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         logger.info("Sent CONNECTED frame");
         return connectedFrame.toString();
     }
+
 
     private String handleSubscribe(Frame frame) {
         logger.info("Handling SUBSCRIBE frame");

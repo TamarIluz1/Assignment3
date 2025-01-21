@@ -3,10 +3,11 @@ package bgu.spl.net.impl.stomp;
 import bgu.spl.net.srv.Server;
 
 public class StompServer {
-
+    
     public static void main(String[] args) {
         // TODO: implement this
-
+        int subscriptionCounter = 0;
+        int messageCounter = 0;
         // Added all this main code by Tamar 15/1
 
         if (args.length < 2) {
