@@ -90,6 +90,12 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             
         } else {
             createUser(new User(username, password, (ConnectionHandler)connections.getCHbyConnectionID(connectionId), connectionId));
+            Frame connectedFrame = new Frame("CONNECT");
+                connectedFrame.addHeader("version", "1.2");
+                connectedFrame.setBody(null);
+                connections.send(connectionId, connectedFrame.toString());
+            logger.info("Sent CONNECTED frame");
+            return connectedFrame.toString();
         }
         return null;
 
