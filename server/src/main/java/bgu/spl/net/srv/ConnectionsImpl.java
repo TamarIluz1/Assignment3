@@ -19,13 +19,13 @@ public class ConnectionsImpl<T> implements Connections<T> {
     //private ConcurrentMap<String, Set<Integer>> topicSubscribers;
 
     //NEW ARCHITECTURE BY NOAM
-    private ConcurrentHashMap<String, User<T>> UserDetails; 
+    private ConcurrentHashMap<String, User<T>> userDetails; 
     private ConcurrentMap<String, Set<Integer>> channelSubscribers;
     private ConcurrentMap<Integer, ConnectionHandler<T>> ActiveConnectionsToHandler;
     private AtomicInteger msgIdCounter = new AtomicInteger();
 
     public ConnectionsImpl() {
-        UserDetails = new ConcurrentHashMap<>();
+        userDetails = new ConcurrentHashMap<>();
         channelSubscribers = new ConcurrentHashMap<>();
         ActiveConnectionsToHandler = new ConcurrentHashMap<>();
         msgIdCounter.set(0);
@@ -54,23 +54,48 @@ public class ConnectionsImpl<T> implements Connections<T> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public void loginUser(int connectionId, String username, String password){
         // logic: - check if some user is already logged in
         // if not, check whether the username and password exist
-        if (!UserDetails.containsKey(username)){
+
+        for (User<T> user : userDetails.values()){
+            if (user.isLoggedIn() && user.getConnectionId().equals(connectionId)){
+                send(connectionId,(T) "ERROR\nmessage:The client is already logged in, log out before trying again\n\n^@");
+                return;
+            }
+        }
+        // user already logged
+        if (userDetails.get(username).isLoggedIn()){
+            send(connectionId,(T) "ERROR\nmessage:User already logged in\n\n^@");
+            return;
+        }
+        
+        if (userDetails.containsKey(username)){
+            //trying to login to existing user
             if (checkLogin(username, password)){
-                UserDetails.get(username).setLoggedIn(true);
-                // TODO WHERE DO WE ADD NEW CONNECTION HANDLER
-                send(connectionId, "CONNECTED\nversion:1.2\n\n^@");
+                User<T> logged = userDetails.get(username);
+                logged.setLoggedIn(true);
+                logged.setConnectionId(connectionId);
+                logged.setCH(ActiveConnectionsToHandler.get(connectionId));
+                // TODO NOT SURE IF THIS IS LEGIT
+                send(connectionId,(T) "CONNECTED\nversion:1.2\n\n^@");
             } else {
-                send(connectionId, "ERROR\nmessage:Wrong password\n\n^@");
+                send(connectionId,(T) "ERROR\nmessage:Wrong password\n\n^@");
             }
 
         }
+        else{
+            // new user
+            userDetails.put(username, new User<T>(username, password, ActiveConnectionsToHandler.get(connectionId), connectionId));
+            send(connectionId,(T) "CONNECTED\nversion:1.2\n\n^@");
+        }
+
     }
 
     public boolean checkLogin(String username, String password){
-        return logDetails.containsKey(username) && logDetails.get(username).equals(password);
+        // returns true iff the username exists and the password is correct
+        return userDetails.containsKey(username) && userDetails.get(username).equals(password);
     }
 
 
@@ -78,7 +103,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
     public void disconnect(int connectionId) {
         ActiveConnectionsToHandler.remove(connectionId);
         // Remove from all subscribed topics
-        for (Set<Integer> subscribers : topicSubscribers.values()) {
+        for (Set<Integer> subscribers : channelSubscribers.values()) {
             subscribers.remove(connectionId);
         }
     }
@@ -103,7 +128,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
     }
 
     public String getPasswordByUsername(String name){
-        return logDetails.get(name);
+        return userDetails.get(name).getPassword();
     }
     
 }

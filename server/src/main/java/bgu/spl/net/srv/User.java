@@ -13,7 +13,7 @@ public class User<T> {
     public User(String username, String password, ConnectionHandler<T> connectionHandler, int connectionId) {
         this.username = username;
         this.password = password;
-        this.isLoggedIn = false;
+        this.isLoggedIn = true;
         this.connectionHandler = connectionHandler;
         this.connectionId = connectionId;
         this.channels = new ConcurrentHashMap<>();
@@ -33,5 +33,17 @@ public class User<T> {
 
     public void setLoggedIn(boolean loggedIn) {
         isLoggedIn = loggedIn;
+    }
+
+    public void setCH(ConnectionHandler<T> connectionHandler) {
+        this.connectionHandler = connectionHandler;
+    }
+
+    public void setConnectionId(int connectionId) {
+        this.connectionId = connectionId;
+    }
+
+    public Integer getConnectionId(){
+        return connectionId;
     }
 }
