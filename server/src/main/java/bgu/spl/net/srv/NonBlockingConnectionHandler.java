@@ -33,7 +33,7 @@ public class NonBlockingConnectionHandler<T> implements ConnectionHandler<T> {
         this.reactor = reactor;
         
         //Todo  - check the logic of the start method
-        this.protocol.start(0, new ConnectionsImpl<T>());
+        this.protocol.start(0, reactor.getConnectionsImpl());
 
     }
 

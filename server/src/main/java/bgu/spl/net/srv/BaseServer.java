@@ -29,7 +29,7 @@ public abstract class BaseServer<T> implements Server<T> {
         this.encdecFactory = encdecFactory;
 		this.sock = null;
         this.connections = new ConnectionsImpl<>();
-        this.connectionCounter.set(0);
+        this.connectionCounter = new AtomicInteger();
     }
 
     @Override

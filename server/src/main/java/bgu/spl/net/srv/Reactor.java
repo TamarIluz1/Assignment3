@@ -38,7 +38,7 @@ public class Reactor<T> implements Server<T> {
         this.protocolFactory = protocolFactory;
         this.readerFactory = readerFactory;
         this.connections = new ConnectionsImpl<>();
-        this.connectionCounter.set(0);
+        this.connectionCounter = new AtomicInteger();
     }
 
     @Override
@@ -132,9 +132,15 @@ public class Reactor<T> implements Server<T> {
         }
     }
 
+    
+
     @Override
     public void close() throws IOException {
         selector.close();
+    }
+
+    public ConnectionsImpl getConnectionsImpl(){
+        return connections;
     }
 
 }
