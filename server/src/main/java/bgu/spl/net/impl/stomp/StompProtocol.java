@@ -21,14 +21,9 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     private ConnectionsImpl<String> connections;
     private Map<String, String> subscriptionsIdtoChannelName = new HashMap<>();
     private Map<String, Set<String>> channeltoSubscriptions = new HashMap<>();
-<<<<<<< HEAD
     private ConcurrentHashMap<String, Integer> subscriptionIdToConnectionId = new ConcurrentHashMap();
     //private Map<String, Map<String, String>> subsByChannel = new HashMap<>(); //channel -> connectionId -> subscriptionId
     private Map<String, ConnectionHandler<String>> subscriptionsIDToHandlers = new HashMap<>();
-=======
-    private Map<String, ConnectionHandler<String>> subscriptionsIDToHandlers = new HashMap<>();
-    
->>>>>>> 652ec8cc85b7d36380900ed55be2020ade3cda8b
     private boolean shouldTerminate = false;
     // TODO add field of subscription to
     
@@ -127,7 +122,6 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         if (destination == null || subsID == null) {
             return handleError("Missing destination or id in SUBSCRIBE frame");
         }
-<<<<<<< HEAD
         if (channeltoSubscriptions.containsKey(destination)){
             logger.info("Checking if already subscribed to this channel");
             for (String existingSubscription : channeltoSubscriptions.get(destination)){
@@ -144,12 +138,6 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         // if (connections.getCHbyConnectionID(connectionId))
         subscriptionsIdtoChannelName.put(subsID, destination);
   
-=======
-        //need to subscribe to the connections 22.1
-        connections.subscribe(connectionId, destination);
-
-        subscriptionsIdtoChannelName.put(id, destination);
->>>>>>> 652ec8cc85b7d36380900ed55be2020ade3cda8b
         if (channeltoSubscriptions.containsKey(destination)) {
             channeltoSubscriptions.get(destination).add(subsID);
         }
@@ -158,23 +146,11 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             channeltoSubscriptions.put(destination, new HashSet<String>());
             channeltoSubscriptions.get(destination).add(subsID);
         }
-<<<<<<< HEAD
         subscriptionsIDToHandlers.put(subsID, connections.getCHbyConnectionID(connectionId));
         subscriptionIdToConnectionId.put(subsID, connectionId);
         logger.info("Adding to subscriptionsIDToHandlers: " + subsID + " -> " + connections.getCHbyConnectionID(connectionId));
 
         logger.info("Subscribed to destination: " + destination + " with ID: " + subsID);
-=======
-        ConnectionHandler<String> ch = connections.getCHbyConnectionID(connectionId);
-        if(ch != null){
-            subscriptionsIDToHandlers.put(id, ch);
-        }
-        else{
-
-            throw new NullPointerException("ConnectionHandler is null");
-        }        
-        logger.info("Subscribed to destination: " + destination + " with ID: " + id);
->>>>>>> 652ec8cc85b7d36380900ed55be2020ade3cda8b
         // Acknowledge subscription
         return null;
     }
@@ -185,24 +161,16 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         if (subsId == null || !subscriptionsIdtoChannelName.containsKey(subsId)) {
             return handleError("Invalid or missing id in UNSUBSCRIBE frame");
         }
-<<<<<<< HEAD
         String channelName = subscriptionsIdtoChannelName.get(subsId);
         subscriptionsIdtoChannelName.remove(subsId);
         subscriptionsIDToHandlers.remove(subsId);
         channeltoSubscriptions.get(channelName).remove(subsId);
         subscriptionIdToConnectionId.remove(subsId);
         logger.info("Unsubscribed from ID: " + subsId);
-=======
-        String channelName = subscriptionsIdtoChannelName.get(id);
 
         //need to unsubscribe to the connections 22.1
         connections.unsubscribe(connectionId, channelName);
 
-        subscriptionsIdtoChannelName.remove(id);
-        subscriptionsIDToHandlers.remove(id);
-        channeltoSubscriptions.get(channelName).remove(id);
-        logger.info("Unsubscribed from ID: " + id);
->>>>>>> 652ec8cc85b7d36380900ed55be2020ade3cda8b
         return null;
     }
 
@@ -221,37 +189,15 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             // we send the message to all the subscribers
 
             Frame messageFrame = new Frame("MESSAGE");
-<<<<<<< HEAD
             messageFrame.addHeader("destination", destination);
-=======
-            
->>>>>>> 652ec8cc85b7d36380900ed55be2020ade3cda8b
             messageFrame.addHeader("subscription", subscriptionID);
             messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
-            messageFrame.addHeader("destination", destWithoutSlash);
+            messageFrame.addHeader("destination", destination);
             messageFrame.setBody(frame.getBody());
-<<<<<<< HEAD
             connections.send(destination, messageFrame.toString());
             logger.info("Sent MESSAGE frame to subscription: " + subscriptionID);
             subscriptionsIDToHandlers.get(subscriptionID).send(connectionId, destination);
             logger.info("Sent MESSAGE frame to subscriptionId of: " + subscriptionID + destination);
-=======
-            if(subscriptionsIDToHandlers.get(subscriptionID) != null){
-                subscriptionsIDToHandlers.get(subscriptionID).send(connectionId, messageFrame.toString());
-            }
-            else{
-                if (connections.getCHbyConnectionID(connectionId) != null){
-                    subscriptionsIDToHandlers.putIfAbsent(subscriptionID, connections.getCHbyConnectionID(connectionId));
-                    subscriptionsIDToHandlers.get(subscriptionID).send(connectionId, messageFrame.toString());
-
-                }
-                else{
-                    
-                }
-            }
-            logger.info("Sent MESSAGE frame to subscriptionId of: " + subscriptionID + destWithoutSlash);
-            connections.send(destWithoutSlash, messageFrame.toString());
->>>>>>> 652ec8cc85b7d36380900ed55be2020ade3cda8b
             return messageFrame.toString();
 
         }
