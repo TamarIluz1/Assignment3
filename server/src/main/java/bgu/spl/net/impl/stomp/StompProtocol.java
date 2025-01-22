@@ -86,7 +86,6 @@ public class StompProtocol implements StompMessagingProtocol<String> {
                 // Send CONNECTED frame back to client
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);
-                connections.send(connectionId, connectedFrame.toString());
                 logger.info("Sent CONNECTED frame of existing user" + username);
                 return connectedFrame.toString();
             }
@@ -95,7 +94,6 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             createUser(new User(username, password, (ConnectionHandler)connections.getCHbyConnectionID(connectionId), connectionId));
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);
-                connections.send(connectionId, connectedFrame.toString());
             logger.info("Sent CONNECTED frame - new user" + username);
             return connectedFrame.toString();
         }
@@ -115,9 +113,15 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
 
     private String handleSubscribe(Frame frame) {
+
         logger.info("Handling SUBSCRIBE frame");
         String destination = frame.getHeaders().get("destination");
         String id = frame.getHeaders().get("id");
+        String receiptId = frame.getHeaders().get("receipt");
+        Frame receiptFrame = new Frame("RECEIPT");
+        receiptFrame.addHeader("recipt", receiptId);
+        receiptFrame.setBody(null);
+
         if (destination == null || id == null) {
             return handleError("Missing destination or id in SUBSCRIBE frame");
         }
@@ -142,12 +146,16 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         }        
         logger.info("Subscribed to destination: " + destination + " with ID: " + id);
         // Acknowledge subscription
-        return null;
+        return receiptFrame.toString();
     }
 
     private String handleUnsubscribe(Frame frame) {
         logger.info("Handling UNSUBSCRIBE frame");
         String id = frame.getHeaders().get("id");
+        String receiptId = frame.getHeaders().get("receipt");
+        Frame receiptFrame = new Frame("RECEIPT");
+        receiptFrame.addHeader("recipt", receiptId);
+        receiptFrame.setBody(null);
         if (id == null || !subscriptionsIdtoChannelName.containsKey(id)) {
             return handleError("Invalid or missing id in UNSUBSCRIBE frame");
         }
@@ -160,7 +168,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         subscriptionsIDToHandlers.remove(id);
         channeltoSubscriptions.get(channelName).remove(id);
         logger.info("Unsubscribed from ID: " + id);
-        return null;
+        return receiptFrame.toString();
     }
 
     private String handleSend(Frame frame) {
@@ -179,7 +187,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             
             messageFrame.addHeader("subscription", subscriptionID);
             messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
-            messageFrame.addHeader("destination", destWithoutSlash);
+            messageFrame.addHeader("destination", destination);
             messageFrame.setBody(frame.getBody());
             if(subscriptionsIDToHandlers.get(subscriptionID) != null){
                 subscriptionsIDToHandlers.get(subscriptionID).send(connectionId, messageFrame.toString());
@@ -195,7 +203,6 @@ public class StompProtocol implements StompMessagingProtocol<String> {
                 }
             }
             logger.info("Sent MESSAGE frame to subscriptionId of: " + subscriptionID + destWithoutSlash);
-            connections.send(destWithoutSlash, messageFrame.toString());
             return messageFrame.toString();
 
         }
@@ -207,8 +214,8 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         String receiptId = frame.getHeaders().get("receipt");
         if (receiptId != null) {
             Frame receiptFrame = new Frame("RECEIPT");
+            connections.disconnect(connectionId);
             receiptFrame.addHeader("receipt-id", receiptId);
-            connections.send(connectionId, receiptFrame.toString());
             logger.info("Sent RECEIPT frame with receipt-id: " + receiptId);
             return receiptFrame.toString();
         }
