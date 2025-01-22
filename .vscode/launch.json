@@ -67,6 +67,17 @@
             "name": "Launch Current File",
             "request": "launch",
             "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "Debug Stomp Server",
+            "request": "launch",
+            "mainClass": "bgu.spl.net.impl.stomp.StompServer",
+            "projectName": "server",
+            "args": "8888 reactor",
+            "vmArgs": "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=localhost:5005",
+            "cwd": "${workspaceFolder}/Assignment3/server"
         }
+
     ]
 }
