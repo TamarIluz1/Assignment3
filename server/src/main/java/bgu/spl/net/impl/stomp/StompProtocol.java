@@ -153,16 +153,17 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             return handleError("Invalid or missing destination in SEND frame");
         }
         // Broadcast message to all subscribers
-        for (Integer connectionID : connections.getSubscribers(destination)) {
+        for (String subscriptionID : channeltoSubscriptions.get(destination)) {
             // we send the message to all the subscribers
 
             Frame messageFrame = new Frame("MESSAGE");
             messageFrame.addHeader("destination", destination);
-            //messageFrame.addHeader("subscription", ""); // TODO Add appropriate subscription id
+            messageFrame.addHeader("subscription", subscriptionID);
             messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
             messageFrame.setBody(frame.getBody());
             connections.send(destination, messageFrame.toString());
-            logger.info("Sent MESSAGE frame to destination: " + destination);
+            subscriptionsToHandlers.get(subscriptionID).send(connectionId, destination);
+            logger.info("Sent MESSAGE frame to subscriptionId of: " + subscriptionID + destination);
             return messageFrame.toString();
 
         }
