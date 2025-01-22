@@ -18,7 +18,6 @@ public class StompEncoderDecoder implements MessageEncoderDecoder<String> {
             try {
                 Frame frame = Frame.parseFrame(currentMessage.toString());
                 currentMessage.setLength(0); // Reset buffer
-                logger.info("Decoded frame: " + frame.toString());
                 return frame.toString();
             } catch (IllegalArgumentException e) {
                 logger.severe("[ERROR] Failed to parse frame: " + e.getMessage());

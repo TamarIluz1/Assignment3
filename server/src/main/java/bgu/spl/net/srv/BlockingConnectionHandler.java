@@ -1,9 +1,7 @@
 package bgu.spl.net.srv;
 
 import bgu.spl.net.api.MessageEncoderDecoder;
-import bgu.spl.net.api.MessagingProtocol;
 import bgu.spl.net.api.StompMessagingProtocol;
-
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -24,7 +22,6 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
         this.encdec = reader;
         this.protocol = protocol;
         //Todo  - check if 
-        this.protocol.start(0, new ConnectionsImpl<T>());
         user = null;
     }
 
@@ -75,9 +72,12 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
         }
     }
 
+    @Override
     public void setUser(User<T> user) {
         this.user = user;
     }
+
+    @Override
     public User<T> getUser() {
         return user;
     }

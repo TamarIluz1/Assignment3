@@ -107,8 +107,12 @@ public class Reactor<T> implements Server<T> {
                 clientChan,
                 this);
         clientChan.register(selector, SelectionKey.OP_READ, handler);
+<<<<<<< HEAD
         connections.addConnection(connectionCounter, handler);
         connectionCounter++;
+=======
+        connections.addConnection(connectionCounter.getAndIncrement(), handler);
+>>>>>>> 652ec8cc85b7d36380900ed55be2020ade3cda8b
     }
 
     private void handleReadWrite(SelectionKey key) {
@@ -142,6 +146,10 @@ public class Reactor<T> implements Server<T> {
 
     public ConnectionsImpl getConnectionsImpl(){
         return connections;
+    }
+
+    public int getConnectionCounter(){
+        return connectionCounter.get();
     }
 
 }

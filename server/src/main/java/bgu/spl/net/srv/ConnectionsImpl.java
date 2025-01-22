@@ -74,7 +74,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
     }
 
     public void addConnection(int connectionId, ConnectionHandler<T> handler) {
-        ActiveConnectionsToHandler.put(connectionId, handler);
+        ActiveConnectionsToHandler.putIfAbsent(connectionId, handler);
     }
 
     public void subscribe(int connectionId, String channel) {
@@ -113,6 +113,9 @@ public class ConnectionsImpl<T> implements Connections<T> {
     }
 
     public ConnectionHandler getCHbyConnectionID(int connectionId){
+        if(!ActiveConnectionsToHandler.containsKey(connectionId)){
+            return null;
+        }
         return ActiveConnectionsToHandler.get(connectionId);
     }
     

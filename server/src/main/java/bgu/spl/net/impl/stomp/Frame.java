@@ -36,6 +36,9 @@ public class Frame {
         return body;
     }
 
+
+    
+
     public static Frame parseFrame(String rawFrame) {
         if (rawFrame == null || rawFrame.isEmpty()) {
             throw new IllegalArgumentException("Frame is empty or null");
