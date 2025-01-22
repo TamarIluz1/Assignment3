@@ -20,8 +20,6 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     private int connectionId;
     private ConnectionsImpl<String> connections;
     private Map<String, String> subscriptionsIdtoChannelName = new HashMap<>();
-    private Map<String, Set<String>> channeltoSubscriptions = new HashMap<>();
-    private Map<String, ConnectionHandler<String>> subscriptionsIDToHandlers = new HashMap<>();
     
     private boolean shouldTerminate = false;
     // TODO add field of subscription to
@@ -129,21 +127,8 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         connections.subscribe(connectionId, destination);
 
         subscriptionsIdtoChannelName.put(id, destination);
-        if (channeltoSubscriptions.containsKey(destination)) {
-            channeltoSubscriptions.get(destination).add(id);
-        }
-        else{
-            channeltoSubscriptions.put(destination, new HashSet<String>());
-            channeltoSubscriptions.get(destination).add(id);
-        }
-        ConnectionHandler<String> ch = connections.getCHbyConnectionID(connectionId);
-        if(ch != null){
-            subscriptionsIDToHandlers.put(id, ch);
-        }
-        else{
 
-            throw new NullPointerException("ConnectionHandler is null");
-        }        
+     
         logger.info("Subscribed to destination: " + destination + " with ID: " + id);
         // Acknowledge subscription
         return receiptFrame.toString();
@@ -165,8 +150,6 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         connections.unsubscribe(connectionId, channelName);
 
         subscriptionsIdtoChannelName.remove(id);
-        subscriptionsIDToHandlers.remove(id);
-        channeltoSubscriptions.get(channelName).remove(id);
         logger.info("Unsubscribed from ID: " + id);
         return receiptFrame.toString();
     }
@@ -180,32 +163,15 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         }
         String destWithoutSlash = destination.substring(1);
         // Broadcast message to all subscribers
-        for (String subscriptionID : channeltoSubscriptions.get(destWithoutSlash)) {
-            // we send the message to all the subscribers
 
-            Frame messageFrame = new Frame("MESSAGE");
+        Frame messageFrame = new Frame("MESSAGE");
             
-            messageFrame.addHeader("subscription", subscriptionID);
-            messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
-            messageFrame.addHeader("destination", destination);
-            messageFrame.setBody(frame.getBody());
-            if(subscriptionsIDToHandlers.get(subscriptionID) != null){
-                subscriptionsIDToHandlers.get(subscriptionID).send(connectionId, messageFrame.toString());
-            }
-            else{
-                if (connections.getCHbyConnectionID(connectionId) != null){
-                    subscriptionsIDToHandlers.putIfAbsent(subscriptionID, connections.getCHbyConnectionID(connectionId));
-                    subscriptionsIDToHandlers.get(subscriptionID).send(connectionId, messageFrame.toString());
-
-                }
-                else{
-                    
-                }
-            }
-            logger.info("Sent MESSAGE frame to subscriptionId of: " + subscriptionID + destWithoutSlash);
-            return messageFrame.toString();
-
-        }
+        messageFrame.addHeader("subscription", ""+connectionId);
+        messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
+        messageFrame.addHeader("destination", destination);
+        messageFrame.setBody(frame.getBody());
+        logger.info("Sent MESSAGE frame to subscriptionId of: " + connectionId + destWithoutSlash);
+        connections.send(destWithoutSlash,  messageFrame.toString());
         return null;
     }
 
@@ -229,7 +195,6 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         logger.severe("Handling ERROR frame: " + errorMessage);
         Frame errorFrame = new Frame("ERROR");
         errorFrame.addHeader("message", errorMessage);
-        connections.send(connectionId, errorFrame.toString());
         connections.disconnect(connectionId);
         shouldTerminate = true;
         return errorFrame.toString();

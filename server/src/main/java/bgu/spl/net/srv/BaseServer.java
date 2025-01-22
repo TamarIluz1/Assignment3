@@ -43,7 +43,7 @@ public abstract class BaseServer<T> implements Server<T> {
             while (!Thread.currentThread().isInterrupted()) {
 
                 Socket clientSock = serverSock.accept();
-                StompMessagingProtocol protocol = protocolFactory.get();
+                StompMessagingProtocol<T> protocol = protocolFactory.get();
                 protocol.start(connectionCounter.get(), connections);
 
                 BlockingConnectionHandler<T> handler = new BlockingConnectionHandler<>(

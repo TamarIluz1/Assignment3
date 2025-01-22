@@ -40,7 +40,6 @@ public class ConnectionsImpl<T> implements Connections<T> {
     public boolean send(int connectionId, T msg) {
         ConnectionHandler<T> handler = ActiveConnectionsToHandler.get(connectionId);
         if (handler != null) {
-            msgIdCounter.getAndIncrement();
             handler.send(connectionId,msg);
             return true;
         }
