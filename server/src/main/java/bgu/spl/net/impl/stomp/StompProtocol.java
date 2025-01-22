@@ -21,7 +21,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     private ConnectionsImpl<String> connections;
     private Map<String, String> subscriptionsIdtoChannelName = new HashMap<>();
     private Map<String, Set<String>> channeltoSubscriptions = new HashMap<>();
-    private ConcurrentHashMap<String, Integer> subscriptionIdToConnectionId = new ConcurrentHashMap();
+    private ConcurrentHashMap<String, Integer> subscriptionIdToConnectionId = new ConcurrentHashMap<>();
     //private Map<String, Map<String, String>> subsByChannel = new HashMap<>(); //channel -> connectionId -> subscriptionId
     private Map<String, ConnectionHandler<String>> subscriptionsIDToHandlers = new HashMap<>();
     private boolean shouldTerminate = false;
@@ -93,7 +93,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             }
             
         } else {
-            createUser(new User(username, password, (ConnectionHandler)connections.getCHbyConnectionID(connectionId), connectionId));
+            createUser(new User<String>(username, password, (ConnectionHandler)connections.getCHbyConnectionID(connectionId), connectionId));
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);
                 connections.send(connectionId, connectedFrame.toString());
