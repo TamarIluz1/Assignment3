@@ -74,34 +74,38 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         if (connections.getUserDetails(username).isLoggedIn()) {
             return handleError("ERROR\nmessage:User already logged in\n\n^@");
         }
-        
+
+        Frame connectedFrame = new Frame("CONNECT");
+
         if (connections.getUsers().containsKey(username) ) {
-            // Trying to login to existing user
+            // login existing user
             if (connections.checkLogin(username, password)) {
                 // login details are valid
-                User<String> logged = connections.getUserDetails(username);
-                logged.setLoggedIn(true);
-                logged.setConnectionId(connectionId);
+                loginExistingUser(username);
                 // Send CONNECTED frame back to client
-                Frame connectedFrame = new Frame("CONNECT");
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);
                 connections.send(connectionId, connectedFrame.toString());
-                logger.info("Sent CONNECTED frame");
+                logger.info("Sent CONNECTED frame of existing user" + username);
                 return connectedFrame.toString();
             }
             
         } else {
             createUser(new User(username, password, (ConnectionHandler)connections.getCHbyConnectionID(connectionId), connectionId));
-            Frame connectedFrame = new Frame("CONNECT");
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);
                 connections.send(connectionId, connectedFrame.toString());
-            logger.info("Sent CONNECTED frame");
+            logger.info("Sent CONNECTED frame - new user" + username);
             return connectedFrame.toString();
         }
         return null;
 
+    }
+
+    public void loginExistingUser(String username) {
+        User<String> logged = connections.getUserDetails(username);
+        logged.setLoggedIn(true);
+        logged.setConnectionId(connectionId);
     }
 
     public void createUser(User u) {
@@ -142,7 +146,6 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         subscriptionsToHandlers.remove(id);
         channeltoSubscriptions.get(channelName).remove(id);
         logger.info("Unsubscribed from ID: " + id);
-        // Acknowledge unsubscription
         return null;
     }
 
