@@ -21,6 +21,7 @@ public class NonBlockingConnectionHandler<T> implements ConnectionHandler<T> {
     private final Queue<ByteBuffer> writeQueue = new ConcurrentLinkedQueue<>();
     private final SocketChannel chan;
     private final Reactor reactor;
+    private User<T> user;
 
     public NonBlockingConnectionHandler(
             MessageEncoderDecoder<T> reader,
@@ -33,7 +34,7 @@ public class NonBlockingConnectionHandler<T> implements ConnectionHandler<T> {
         this.reactor = reactor;
         
         //Todo  - check the logic of the start method
-        this.protocol.start(0, reactor.getConnectionsImpl());
+        this.protocol.start(reactor.getConnectionCounter(), reactor.getConnectionsImpl());
 
     }
 
@@ -126,5 +127,15 @@ public class NonBlockingConnectionHandler<T> implements ConnectionHandler<T> {
         ByteBuffer buffer = ByteBuffer.wrap(encdec.encode(msg));
         writeQueue.add(buffer);
         reactor.updateInterestedOps(chan, SelectionKey.OP_WRITE);
+    }
+
+    @Override
+    public User<T> getUser() {
+        return user;
+    }
+
+    @Override
+    public void setUser(User<T> user) {
+        this.user = user;
     }
 }

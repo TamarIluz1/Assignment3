@@ -21,7 +21,8 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     private ConnectionsImpl<String> connections;
     private Map<String, String> subscriptionsIdtoChannelName = new HashMap<>();
     private Map<String, Set<String>> channeltoSubscriptions = new HashMap<>();
-    private Map<String, ConnectionHandler> subscriptionsIDToHandlers = new HashMap<>();
+    private Map<String, ConnectionHandler<String>> subscriptionsIDToHandlers = new HashMap<>();
+    
     private boolean shouldTerminate = false;
     // TODO add field of subscription to
     
@@ -77,7 +78,6 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         }
 
         Frame connectedFrame = new Frame("CONNECTED");
-
         if (connections.getUsers().containsKey(username) ) {
             // login existing user
             if (connections.checkLogin(username, password)) {
@@ -121,6 +121,9 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         if (destination == null || id == null) {
             return handleError("Missing destination or id in SUBSCRIBE frame");
         }
+        //need to subscribe to the connections 22.1
+        connections.subscribe(connectionId, destination);
+
         subscriptionsIdtoChannelName.put(id, destination);
         if (channeltoSubscriptions.containsKey(destination)) {
             channeltoSubscriptions.get(destination).add(id);
@@ -129,8 +132,14 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             channeltoSubscriptions.put(destination, new HashSet<String>());
             channeltoSubscriptions.get(destination).add(id);
         }
-        subscriptionsIDToHandlers.put(id, connections.getCHbyConnectionID(connectionId));
-        
+        ConnectionHandler<String> ch = connections.getCHbyConnectionID(connectionId);
+        if(ch != null){
+            subscriptionsIDToHandlers.put(id, ch);
+        }
+        else{
+
+            throw new NullPointerException("ConnectionHandler is null");
+        }        
         logger.info("Subscribed to destination: " + destination + " with ID: " + id);
         // Acknowledge subscription
         return null;
@@ -143,6 +152,10 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             return handleError("Invalid or missing id in UNSUBSCRIBE frame");
         }
         String channelName = subscriptionsIdtoChannelName.get(id);
+
+        //need to unsubscribe to the connections 22.1
+        connections.unsubscribe(connectionId, channelName);
+
         subscriptionsIdtoChannelName.remove(id);
         subscriptionsIDToHandlers.remove(id);
         channeltoSubscriptions.get(channelName).remove(id);
@@ -163,13 +176,26 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             // we send the message to all the subscribers
 
             Frame messageFrame = new Frame("MESSAGE");
-            messageFrame.addHeader("destination", destWithoutSlash);
+            
             messageFrame.addHeader("subscription", subscriptionID);
             messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
+            messageFrame.addHeader("destination", destWithoutSlash);
             messageFrame.setBody(frame.getBody());
-            connections.send(destWithoutSlash, messageFrame.toString());
-            subscriptionsIDToHandlers.get(subscriptionID).send(connectionId, destWithoutSlash);
+            if(subscriptionsIDToHandlers.get(subscriptionID) != null){
+                subscriptionsIDToHandlers.get(subscriptionID).send(connectionId, messageFrame.toString());
+            }
+            else{
+                if (connections.getCHbyConnectionID(connectionId) != null){
+                    subscriptionsIDToHandlers.putIfAbsent(subscriptionID, connections.getCHbyConnectionID(connectionId));
+                    subscriptionsIDToHandlers.get(subscriptionID).send(connectionId, messageFrame.toString());
+
+                }
+                else{
+                    
+                }
+            }
             logger.info("Sent MESSAGE frame to subscriptionId of: " + subscriptionID + destWithoutSlash);
+            connections.send(destWithoutSlash, messageFrame.toString());
             return messageFrame.toString();
 
         }
@@ -205,5 +231,9 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     @Override
     public boolean shouldTerminate() {
         return shouldTerminate;
+    }
+
+    public int getConnectionId() {
+        return connectionId;
     }
 }

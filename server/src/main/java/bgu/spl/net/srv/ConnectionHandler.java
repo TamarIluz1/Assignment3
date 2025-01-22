@@ -19,4 +19,9 @@ public interface ConnectionHandler<T> extends Closeable {
 
     void send(int connectionId,T msg);
 
+    //added to support sending to a specific channel 22.1
+    void setUser(User<T> user);
+    User<T> getUser();
+
+
 }
