@@ -123,6 +123,16 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         if (destination == null || id == null) {
             return handleError("Missing destination or id in SUBSCRIBE frame");
         }
+        Set<Integer> subscribers = connections.getSubscribers(destination);
+        if(subscribers != null){
+            for (Integer sub : subscribers) {
+                if (sub == connectionId) {
+                    return handleError("ERROR\nmessage:Already subscribed to this channel\n\n^@");
+                }
+            }
+        }
+        
+
         //need to subscribe to the connections 22.1
         connections.subscribe(connectionId, destination);
 
