@@ -22,9 +22,9 @@ public class Reactor<T> implements Server<T> {
     private final Supplier<MessageEncoderDecoder<T>> readerFactory;
     private final ActorThreadPool pool;
     private Selector selector;
-    private ConnectionsImpl connections;
+    private ConnectionsImpl<T> connections;
     private Thread selectorThread;
-    private AtomicInteger connectionCounter;
+    private int connectionCounter;
     private final ConcurrentLinkedQueue<Runnable> selectorTasks = new ConcurrentLinkedQueue<>();
 
     public Reactor(
@@ -38,7 +38,7 @@ public class Reactor<T> implements Server<T> {
         this.protocolFactory = protocolFactory;
         this.readerFactory = readerFactory;
         this.connections = new ConnectionsImpl<>();
-        this.connectionCounter = new AtomicInteger();
+        this.connectionCounter = 0;
     }
 
     @Override
@@ -107,7 +107,8 @@ public class Reactor<T> implements Server<T> {
                 clientChan,
                 this);
         clientChan.register(selector, SelectionKey.OP_READ, handler);
-        connections.addConnection(connectionCounter.incrementAndGet(), handler);
+        connections.addConnection(connectionCounter, handler);
+        connectionCounter++;
     }
 
     private void handleReadWrite(SelectionKey key) {

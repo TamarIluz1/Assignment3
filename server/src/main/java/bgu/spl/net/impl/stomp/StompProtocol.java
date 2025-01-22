@@ -96,7 +96,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);
                 connections.send(connectionId, connectedFrame.toString());
-            logger.info("Sent CONNECTED frame - new user" + username);
+            logger.info("Sent CONNECTED frame - new user" + username + "CH is null? " + connections.getCHbyConnectionID(connectionId));
             return connectedFrame.toString();
         }
         return null;
@@ -126,11 +126,13 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             channeltoSubscriptions.get(destination).add(id);
         }
         else{
+            logger.info("Creating new channel: " + destination);
             channeltoSubscriptions.put(destination, new HashSet<String>());
             channeltoSubscriptions.get(destination).add(id);
         }
         subscriptionsIDToHandlers.put(id, connections.getCHbyConnectionID(connectionId));
-        
+        logger.info("Adding to subscriptionsIDToHandlers: " + id + " -> " + connections.getCHbyConnectionID(connectionId));
+
         logger.info("Subscribed to destination: " + destination + " with ID: " + id);
         // Acknowledge subscription
         return null;
@@ -157,19 +159,22 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         if (destination == null || !subscriptionsIdtoChannelName.containsValue(destination.substring(1))) {
             return handleError("Invalid or missing destination in SEND frame");
         }
-        String destWithoutSlash = destination.substring(1);
+        if (destination.charAt(0) == '/') {
+            destination = destination.substring(1); // removing slash if exists
+        }
         // Broadcast message to all subscribers
-        for (String subscriptionID : channeltoSubscriptions.get(destWithoutSlash)) {
+        for (String subscriptionID : channeltoSubscriptions.get(destination)) {
             // we send the message to all the subscribers
 
             Frame messageFrame = new Frame("MESSAGE");
-            messageFrame.addHeader("destination", destWithoutSlash);
+            messageFrame.addHeader("destination", destination);
             messageFrame.addHeader("subscription", subscriptionID);
             messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
             messageFrame.setBody(frame.getBody());
-            connections.send(destWithoutSlash, messageFrame.toString());
-            subscriptionsIDToHandlers.get(subscriptionID).send(connectionId, destWithoutSlash);
-            logger.info("Sent MESSAGE frame to subscriptionId of: " + subscriptionID + destWithoutSlash);
+            connections.send(destination, messageFrame.toString());
+            logger.info("Sent MESSAGE frame to subscription: " + subscriptionID);
+            subscriptionsIDToHandlers.get(subscriptionID).send(connectionId, destination);
+            logger.info("Sent MESSAGE frame to subscriptionId of: " + subscriptionID + destination);
             return messageFrame.toString();
 
         }
