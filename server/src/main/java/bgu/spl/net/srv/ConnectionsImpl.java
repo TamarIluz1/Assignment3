@@ -24,7 +24,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     //NEW ARCHITECTURE BY NOAM
     private ConcurrentHashMap<String, User<T>> userDetails; 
-    private ConcurrentMap<String, Set<Integer>> channelSubscribers;
+    private ConcurrentMap<String, Set<Integer>> channelSubscribers; // stored with connectionId
     private ConcurrentMap<Integer, ConnectionHandler<T>> ActiveConnectionsToHandler;
     private AtomicInteger msgIdCounter = new AtomicInteger();
 

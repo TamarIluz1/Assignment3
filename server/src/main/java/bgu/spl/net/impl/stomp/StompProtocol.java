@@ -114,13 +114,13 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
         logger.info("Handling SUBSCRIBE frame");
         String destination = frame.getHeaders().get("destination");
-        String id = frame.getHeaders().get("id");
+        String subscriptionID = frame.getHeaders().get("id");
         String receiptId = frame.getHeaders().get("receipt");
         Frame receiptFrame = new Frame("RECEIPT");
         receiptFrame.addHeader("recipt", receiptId);
         receiptFrame.setBody(null);
 
-        if (destination == null || id == null) {
+        if (destination == null || subscriptionID == null) {
             return handleError("Missing destination or id in SUBSCRIBE frame");
         }
         Set<Integer> subscribers = connections.getSubscribers(destination);
@@ -136,31 +136,29 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         //need to subscribe to the connections 22.1
         connections.subscribe(connectionId, destination);
 
-        subscriptionsIdtoChannelName.put(id, destination);
-
-     
-        logger.info("Subscribed to destination: " + destination + " with ID: " + id);
+        subscriptionsIdtoChannelName.put(subscriptionID, destination);
+        logger.info("Subscribed to destination: " + destination + " with ID: " + subscriptionID);
         // Acknowledge subscription
         return receiptFrame.toString();
     }
 
     private String handleUnsubscribe(Frame frame) {
         logger.info("Handling UNSUBSCRIBE frame");
-        String id = frame.getHeaders().get("id");
+        String subscriptionID = frame.getHeaders().get("id");
         String receiptId = frame.getHeaders().get("receipt");
         Frame receiptFrame = new Frame("RECEIPT");
         receiptFrame.addHeader("recipt", receiptId);
         receiptFrame.setBody(null);
-        if (id == null || !subscriptionsIdtoChannelName.containsKey(id)) {
+        if (subscriptionID == null || !subscriptionsIdtoChannelName.containsKey(subscriptionID)) {
             return handleError("Invalid or missing id in UNSUBSCRIBE frame");
         }
-        String channelName = subscriptionsIdtoChannelName.get(id);
+        String channelName = subscriptionsIdtoChannelName.get(subscriptionID);
 
         //need to unsubscribe to the connections 22.1
         connections.unsubscribe(connectionId, channelName);
 
-        subscriptionsIdtoChannelName.remove(id);
-        logger.info("Unsubscribed from ID: " + id);
+        subscriptionsIdtoChannelName.remove(subscriptionID);
+        logger.info("Unsubscribed from ID: " + subscriptionID);
         return receiptFrame.toString();
     }
 
