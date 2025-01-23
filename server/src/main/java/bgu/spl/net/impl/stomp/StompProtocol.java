@@ -77,6 +77,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         Frame connectedFrame = new Frame("CONNECTED");
         if (connections.getUsers().containsKey(username) ) {
             // login existing user
+            logger.info("PASSWORD " + password);
             if (!connections.checkLogin(username, password)) {
                 return handleError("ERROR\nmessage:Wrong password\n\n^@");
             }
@@ -91,6 +92,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             
             
         } else {
+            logger.info(username + "password: " + password);
             createUser(new User(username, password, (ConnectionHandler)connections.getCHbyConnectionID(connectionId), connectionId));
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);

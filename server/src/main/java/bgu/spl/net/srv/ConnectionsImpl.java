@@ -84,7 +84,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     public boolean checkLogin(String username, String password){
         // returns true iff the username exists and the password is correct
-        return userDetails.containsKey(username) && userDetails.get(username).equals(password);
+        return userDetails.containsKey(username) && userDetails.get(username).getPassword().equals(password);
     }
 
 
