@@ -9,7 +9,7 @@
             "name": "Launch StompServer",
             "request": "launch",
             "mainClass": "bgu.spl.net.impl.stomp.StompServer",
-            "args": ["7777","reactor"],
+            "args": ["7777","tpc"],
             "projectName": "server",
             "preLaunchTask": "mvn compile"
         },

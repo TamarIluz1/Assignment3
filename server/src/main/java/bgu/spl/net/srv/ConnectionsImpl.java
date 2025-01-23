@@ -90,18 +90,25 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     @Override
     public void disconnect(int connectionId){
-        String usernameLoggedOut = connectionIdToUsername.get(connectionId);
-        if (usernameLoggedOut == null) {
-            return;
+        synchronized(connectionIdToUsername){
+            String usernameLoggedOut = connectionIdToUsername.get(connectionId);
+            if (usernameLoggedOut == null) {
+                return;
+            }
+            logger.info("Disconnecting " + usernameLoggedOut);
+            User user = userDetails.get(usernameLoggedOut);
+            synchronized(user){
+            user.logout();
+            }
+            connectionIdToUsername.remove(connectionId);
+            // Remove from all subscribed topics
+            for (Set<String> subscribers : channelSubscribers.values()) {
+                subscribers.remove(usernameLoggedOut);
+            }
+            
+
         }
-        logger.info("Disconnecting " + usernameLoggedOut);
-        User user = userDetails.get(usernameLoggedOut);
-        user.logout();
-        connectionIdToUsername.remove(connectionId);
-        // Remove from all subscribed topics
-        for (Set<String> subscribers : channelSubscribers.values()) {
-            subscribers.remove(usernameLoggedOut);
-        }
+
         
     }
 
