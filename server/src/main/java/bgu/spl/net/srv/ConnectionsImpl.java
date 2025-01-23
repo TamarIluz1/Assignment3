@@ -28,8 +28,27 @@ public class ConnectionsImpl<T> implements Connections<T> {
     private ConcurrentMap<Integer, ConnectionHandler<T>> ActiveConnectionsToHandler;
     private AtomicInteger msgIdCounter = new AtomicInteger();
 
+    private ConcurrentHashMap<String, String> subscriptionsIdtoChannelName = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, Set<String>> channeltoSubscriptions = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, ConnectionHandler<String>> subscriptionsIDToHandlers = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, Integer> subscriptionIdToConnectionId = new ConcurrentHashMap();
 
 
+
+    public Map<String, ConnectionHandler<String>> getSubscriptionsIDToHandlers() {
+        return subscriptionsIDToHandlers;
+    }
+    public Map<String, String> getSubscriptionsIdtoChannelName() {
+        return subscriptionsIdtoChannelName;
+    }
+    public Map<String, Set<String>> getChanneltoSubscriptions() {
+        return channeltoSubscriptions;
+    }
+    public ConcurrentHashMap<String, Integer> getSubscriptionIdToConnectionId() {
+        return subscriptionIdToConnectionId;
+    }
+
+ 
     public ConnectionsImpl() {
         userDetails = new ConcurrentHashMap<>();
         channelSubscribers = new ConcurrentHashMap<>();
@@ -74,6 +93,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
         for (Set<Integer> subscribers : channelSubscribers.values()) {
             subscribers.remove(connectionId);
         }
+        
     }
 
     public void addConnection(int connectionId, ConnectionHandler<T> handler) {

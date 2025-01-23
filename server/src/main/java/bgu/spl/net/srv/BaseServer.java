@@ -17,7 +17,7 @@ public abstract class BaseServer<T> implements Server<T> {
     private final Supplier<MessageEncoderDecoder<T>> encdecFactory;
     private ServerSocket sock;
     private ConnectionsImpl connections;
-    private AtomicInteger connectionCounter = new AtomicInteger();
+    private AtomicInteger connectionCounter;
 
     public BaseServer(
             int port,
@@ -29,7 +29,7 @@ public abstract class BaseServer<T> implements Server<T> {
         this.encdecFactory = encdecFactory;
 		this.sock = null;
         this.connections = new ConnectionsImpl<>();
-        this.connectionCounter.set(0);;
+        this.connectionCounter = new AtomicInteger();
     }
 
     @Override
@@ -43,6 +43,7 @@ public abstract class BaseServer<T> implements Server<T> {
             while (!Thread.currentThread().isInterrupted()) {
 
                 Socket clientSock = serverSock.accept();
+
                 StompMessagingProtocol<T> protocol = protocolFactory.get();
                 protocol.start(connectionCounter.get(), connections);
 
