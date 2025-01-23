@@ -83,6 +83,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
                 // Send CONNECTED frame back to client
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);
+                connections.addUserConnection(connectionId, username);
                 logger.info("Sent CONNECTED frame of existing user" + username);
                 return connectedFrame.toString();
             }
@@ -92,7 +93,9 @@ public class StompProtocol implements StompMessagingProtocol<String> {
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);
             logger.info("Sent CONNECTED frame - new user" + username);
+            connections.addUserConnection(connectionId, username);
             return connectedFrame.toString();
+            
         }
         return null;
 
@@ -166,7 +169,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         Frame receiptFrame = new Frame("RECEIPT");
         receiptFrame.addHeader("recipt", receiptId);
         receiptFrame.setBody(null);
-        if (subscriptionID == null || !user.isSubscriptionExist(Integer.parseInt(subscriptionID))) {
+        if (subscriptionID == null || user.isSubscriptionExist(Integer.parseInt(subscriptionID))) {
             return handleError("Invalid or missing id in UNSUBSCRIBE frame");
         }
         Integer sId = Integer.parseInt(subscriptionID);
