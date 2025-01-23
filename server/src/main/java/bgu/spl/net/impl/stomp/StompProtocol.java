@@ -197,22 +197,21 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         }
         User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));    
         
-
+        String bigMessage = "";
         // Broadcast message to all subscribers
         for (String userSubbed : connections.getChanneltoSubscriptions().get(destination)) {
             // we send the message to all the subscribers
-
+            User userSubscribed = connections.getUserDetails(userSubbed);
             Frame messageFrame = new Frame("MESSAGE");
             messageFrame.addHeader("subscription", connections.getUserDetails(userSubbed).getSubscriptionIdByChannel(destination).toString());
             messageFrame.addHeader("message-id", (connections.getNewMessageID()).toString()); 
             messageFrame.addHeader("destination", "/"+destination);
             messageFrame.setBody(frame.getBody());
             //connections.send(Integer.parseInt(subscriptionID), messageFrame.toString());
-
+            bigMessage = bigMessage + messageFrame.toString();
             // connections.getSubscriptionsIDToHandlers().get(subscriptionID).send(connectionId, messageFrame.toString());
-            connections.getUserDetails(userSubbed).getConnectionHandler().send(connectionId ,messageFrame.toString()); // i dont like this
-            logger.info("Sent MESSAGE frame to user of: " + userSubbed + destination);
-
+            connections.getUserDetails(userSubbed).getConnectionHandler().send(userSubscribed.getConnectionId() ,messageFrame.toString()); // i dont like this
+            logger.info("Sent MESSAGE frame to user of: " + userSubbed + destination + "by connectionID " + userSubscribed.getConnectionId());
         }
         return null;
     }
