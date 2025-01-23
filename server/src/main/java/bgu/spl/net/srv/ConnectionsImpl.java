@@ -91,9 +91,8 @@ public class ConnectionsImpl<T> implements Connections<T> {
     @Override
     public void disconnect(int connectionId){
         String usernameLoggedOut = connectionIdToUsername.get(connectionId);
-        userDetails.get(usernameLoggedOut).setLoggedIn(false);
-        userDetails.get(usernameLoggedOut).setConnectionId(-1);
-        userDetails.get(usernameLoggedOut).setCH(null);
+        User user = userDetails.get(usernameLoggedOut);
+        user.logout();
         connectionIdToUsername.remove(connectionId);
         // Remove from all subscribed topics
         for (Set<String> subscribers : channelSubscribers.values()) {

@@ -74,4 +74,12 @@ public class User<T> {
     public Integer getSubscriptionIdByChannel(String channel){
         return channelToSubscriptionId.get(channel);
     }
+
+    public void logout(){
+        isLoggedIn = false;
+        channels = new ConcurrentHashMap<>();
+        channelToSubscriptionId = new ConcurrentHashMap<>();
+        setConnectionId(-1);
+        setCH(null);
+    }
 }
