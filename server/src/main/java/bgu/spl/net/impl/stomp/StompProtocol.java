@@ -106,6 +106,8 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
     public void createUser(User u) {
         connections.getUsers().put(u.getUsername(), u);
+        logger.info("Adding user of username "+ u.getUsername());
+        connections.addUserConnection(connectionId, u.getUsername());
     }
 
 
@@ -113,7 +115,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
         logger.info("Handling SUBSCRIBE frame");
         String destination = frame.getHeaders().get("destination");
-        String subscriptionID = frame.getHeaders().get("id");
+        Integer subscriptionID = Integer.parseInt(frame.getHeaders().get("id"));
         String receiptId = frame.getHeaders().get("receipt");
         Frame receiptFrame = new Frame("RECEIPT");
         receiptFrame.addHeader("recipt", receiptId);
@@ -125,39 +127,28 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
         if (connections.getChanneltoSubscriptions().containsKey(destination)){
             logger.info("Checking if already subscribed to this channel");
-            for (String existingSubscription : connections.getChanneltoSubscriptions().get(destination)){
+            for (String userSubscribed : connections.getChanneltoSubscriptions().get(destination)){
                 // for every subscriptionId, well check its not the of the current connection.
-                logger.info("existing checked:" + connectionId + "compared to " +connections.getSubscriptionIdToConnectionId().get(existingSubscription));
-                if (connections.getSubscriptionIdToConnectionId().get(existingSubscription).equals(connectionId)){
+                if (connections.getUserByConnectionId(connectionId).equals(userSubscribed)){
                     return handleError("ERROR\nmessage:Already subscribed to this channel\n\n^@");
                 }
             }
         }
 
-        // Set<Integer> subscribers = connections.getSubscribers(destination);
-        // if(subscribers != null){
-        //     for (Integer sub : subscribers) {
-        //         if (sub == connectionId) {
-        //             return handleError("ERROR\nmessage:Already subscribed to this channel\n\n^@");
-        //         }
-        //     }
-        // }
-        
-
+        logger.info("subscribing user  of connectionId: " + connectionId + " to channel: " + destination + " with ID: " + subscriptionID);
         //need to subscribe to the connections 22.1
-        connections.subscribe(connectionId, destination);
+        connections.subscribe(connectionId, destination, subscriptionID);
 
-        connections.getSubscriptionsIdtoChannelName().put(subscriptionID, destination);
+        //connections.getSubscriptionsIdtoChannelName().put(subscriptionID, destination);
+        String currUser = connections.getUserByConnectionId(connectionId);
         if (connections.getChanneltoSubscriptions().containsKey(destination)) {
-            connections.getChanneltoSubscriptions().get(destination).add(subscriptionID);
+            connections.getChanneltoSubscriptions().get(destination).add(currUser);
         }
         else{
             logger.info("Creating new channel: " + destination);
             connections.getChanneltoSubscriptions().put(destination, new HashSet<String>());
-            connections.getChanneltoSubscriptions().get(destination).add(subscriptionID);
+            connections.getChanneltoSubscriptions().get(destination).add(currUser);
         }
-        connections.getSubscriptionsIDToHandlers().put(subscriptionID, connections.getCHbyConnectionID(connectionId));
-        connections.getSubscriptionIdToConnectionId().put(subscriptionID, connectionId);
 
      
         logger.info("Adding to subscriptionsIDToHandlers: " + subscriptionID + " -> " + connections.getCHbyConnectionID(connectionId));
@@ -168,27 +159,22 @@ public class StompProtocol implements StompMessagingProtocol<String> {
     }
 
     private String handleUnsubscribe(Frame frame) {
+        User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));
         logger.info("Handling UNSUBSCRIBE frame");
         String subscriptionID = frame.getHeaders().get("id");
         String receiptId = frame.getHeaders().get("receipt");
         Frame receiptFrame = new Frame("RECEIPT");
         receiptFrame.addHeader("recipt", receiptId);
         receiptFrame.setBody(null);
-        if (subscriptionID == null || !connections.getSubscriptionsIdtoChannelName().containsKey(subscriptionID)) {
+        if (subscriptionID == null || !user.isSubscriptionExist(Integer.parseInt(subscriptionID))) {
             return handleError("Invalid or missing id in UNSUBSCRIBE frame");
         }
-        String channelName = connections.getSubscriptionsIdtoChannelName().get(subscriptionID);
-        connections.getSubscriptionsIdtoChannelName().remove(subscriptionID);
-        connections.getSubscriptionsIDToHandlers().remove(subscriptionID);
-        connections.getChanneltoSubscriptions().get(channelName).remove(subscriptionID);
-        connections.getSubscriptionIdToConnectionId().remove(subscriptionID);
-        logger.info("Unsubscribed from ID: " + subscriptionID);
-
+        Integer sId = Integer.parseInt(subscriptionID);
+        String channelName = user.getChannelBySubscriptionId(sId);
+        logger.info("Unsubscribed from ID: " + sId);
+        
         //need to unsubscribe to the connections 22.1
-        connections.unsubscribe(connectionId, channelName);
-
-        connections.getSubscriptionsIdtoChannelName().remove(subscriptionID);
-        logger.info("Unsubscribed from ID: " + subscriptionID);
+        connections.unsubscribe(connectionId, channelName, sId);
         return receiptFrame.toString();
     }
 
@@ -197,37 +183,29 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         String destination = frame.getHeaders().get("destination");
         logger.info("DESTINATION" + destination);
 
-        if (destination == null || !connections.getSubscriptionsIdtoChannelName().containsValue(destination.substring(1))) {
-            return handleError("Invalid or missing destination in SEND frame");
-        }
-        // String destWithoutSlash = destination.substring(1);
-        // // Broadcast message to all subscribers
-
-        // Frame messageFrame = new Frame("MESSAGE");
-            
-        // messageFrame.addHeader("subscription", ""+connectionId);
-        // messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
-        // messageFrame.addHeader("destination", destination);
-        // messageFrame.setBody(frame.getBody());
-        // logger.info("Sent MESSAGE frame to subscriptionId of: " + connectionId + destWithoutSlash);
-        // connections.send(destWithoutSlash,  messageFrame.toString());
-
+        if (destination == null){
+            return handleError("missing destination in SEND frame");
+        } 
         if (destination.charAt(0) == '/') {
             destination = destination.substring(1); // removing slash if exists
         }
+        User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));    
+        
+
         // Broadcast message to all subscribers
-        for (String subscriptionID : connections.getChanneltoSubscriptions().get(destination)) {
+        for (String userSubbed : connections.getChanneltoSubscriptions().get(destination)) {
             // we send the message to all the subscribers
 
             Frame messageFrame = new Frame("MESSAGE");
-            messageFrame.addHeader("subscription", subscriptionID);
-            messageFrame.addHeader("message-id", ((Integer)connections.getNewMessageID()).toString()); // Add appropriate message id
+            messageFrame.addHeader("subscription", connections.getUserDetails(userSubbed).getSubscriptionIdByChannel(destination).toString());
+            messageFrame.addHeader("message-id", (connections.getNewMessageID()).toString()); 
             messageFrame.addHeader("destination", "/"+destination);
             messageFrame.setBody(frame.getBody());
             //connections.send(Integer.parseInt(subscriptionID), messageFrame.toString());
-            logger.info("Sent MESSAGE frame to subscription: " + subscriptionID);
-            connections.getSubscriptionsIDToHandlers().get(subscriptionID).send(connectionId, messageFrame.toString());
-            logger.info("Sent MESSAGE frame to subscriptionId of: " + subscriptionID + destination);
+
+            // connections.getSubscriptionsIDToHandlers().get(subscriptionID).send(connectionId, messageFrame.toString());
+            connections.getUserDetails(userSubbed).getConnectionHandler().send(connectionId ,messageFrame.toString()); // i dont like this
+            logger.info("Sent MESSAGE frame to user of: " + userSubbed + destination);
 
         }
         return null;
