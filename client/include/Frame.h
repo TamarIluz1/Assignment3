@@ -5,6 +5,7 @@
 
 class Frame
 {
+public:
 private:
     std::string command;
     std::map<std::string, std::string> headers;
@@ -12,6 +13,8 @@ private:
 
 public:
     Frame(const std::string &command);
+    // Frame *clone();
+
     ~Frame();
 
     // Methods
@@ -22,5 +25,6 @@ public:
     std::string getHeader(const std::string &key) const;
     std::string getBody() const;
     static Frame parseFrame(const std::string &rawFrame);
-    std::string toString();
+    std::string toString() const;
+    std::string getUserNameFromBody() const;
 };
