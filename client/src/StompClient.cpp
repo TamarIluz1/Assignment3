@@ -10,93 +10,101 @@
 #include "../include/KeyboardInput.h"
 #include "../include/Frame.h"
 
-std::atomic<bool> running(true);
-std::queue<Frame> userToServerQueue;
-std::mutex userQueueMutex;
-std::condition_variable userQueueCondition;
-std::atomic<bool> disconnectReceived(false);
-
 void socketReader(ConnectionHandler &connectionHandler, StompProtocol &protocol, std::atomic<bool> &running, std::atomic<bool> &disconnectReceived);
+
+std::mutex disconnectMutex;
 
 int main(int argc, char *argv[])
 {
 	std::atomic<bool> running(true);
 	std::atomic<bool> disconnectReceived(false);
 
+	StompProtocol protocol;
+	ConnectionHandler *connectionHandler = nullptr;
+	KeyboardInput keyboardInput(std::ref(protocol), running, disconnectReceived);
+
 	std::cout << "Waiting for login. Use: login <host:port> <username> <password>" << std::endl;
-	std::string input;
-	std::getline(std::cin, input);
-
-	std::istringstream iss(input);
-	std::string command;
-	iss >> command;
-
-	if (command == "login")
+	while (running.load())
 	{
-		std::string hostPort, username, password;
-		iss >> hostPort >> username >> password;
 
-		std::string host = hostPort.substr(0, hostPort.find(':'));
-		short port = std::stoi(hostPort.substr(hostPort.find(':') + 1));
-
-		ConnectionHandler connectionHandler(host, port);
-		if (!connectionHandler.connect())
+		try
 		{
-			std::cerr << "[ERROR] Cannot connect to " << host << ":" << port << std::endl;
-			return 1;
+			std::string input;
+			std::getline(std::cin, input);
+
+			std::istringstream iss(input);
+			std::string command;
+			iss >> command;
+
+			if (command == "login")
+			{
+				std::string hostPort, username, password;
+				iss >> hostPort >> username >> password;
+
+				std::string host = hostPort.substr(0, hostPort.find(':'));
+				short port = std::stoi(hostPort.substr(hostPort.find(':') + 1));
+
+				connectionHandler = new ConnectionHandler(host, port);
+				if (!(*connectionHandler).connect())
+				{
+					std::cerr << "[ERROR] Cannot connect to " << host << ":" << port << std::endl;
+					continue;
+				}
+
+				protocol.setUsername(username);
+				protocol.setReciptCounter(0);
+				protocol.setNextSubscriptionId(0);
+				protocol.setLastReceiptId(-1);
+				protocol.setActiveConnectionHandler(std::ref(connectionHandler));
+
+				Frame connectFrame = protocol.createConnectFrame("stomp.cs.bgu.ac.il", username, password);
+				if (!(*connectionHandler).sendFrameAscii(connectFrame.toString(), '\0'))
+				{
+					std::cerr << "[ERROR] Failed to send CONNECT frame." << std::endl;
+					continue;
+				}
+
+				std::string serverResponse;
+				if (!(*connectionHandler).getFrameAscii(serverResponse, '\0'))
+				{
+					std::cerr << "[ERROR] Failed to receive server response." << std::endl;
+					continue;
+				}
+				std::cout << "[SERVER MESSAGE] " << serverResponse << std::endl;
+
+				if (serverResponse.find("CONNECTED") == 0)
+				{
+					std::cout << "[INFO] Login successful!" << std::endl;
+				}
+				else
+				{
+					std::cerr << "[ERROR] Login failed: " << serverResponse << std::endl;
+					continue;
+				}
+
+				// Create and start threads
+				std::thread inputThread(&KeyboardInput::start, &keyboardInput);
+				std::thread ioThread(socketReader, std::ref(*connectionHandler), std::ref(protocol), std::ref(running), std::ref(disconnectReceived));
+				inputThread.join();
+				ioThread.join();
+			}
+			else
+			{
+				std::cerr << "[ERROR] Invalid command. Expected: login <host:port> <username> <password>" << std::endl;
+				continue;
+			}
 		}
-
-		StompProtocol protocol;
-
-		protocol.setUsername(username);
-		protocol.setReciptCounter(0);
-		protocol.setNextSubscriptionId(0);
-		protocol.setLastReceiptId(-1);
-		protocol.setActiveConnectionHandler(&connectionHandler);
-
-		Frame connectFrame = protocol.createConnectFrame("stomp.cs.bgu.ac.il", username, password);
-		if (!connectionHandler.sendFrameAscii(connectFrame.toString(), '\0'))
+		catch (const std::exception &e)
 		{
-			std::cerr << "[ERROR] Failed to send CONNECT frame." << std::endl;
-			return 1;
+			std::cerr << "[ERROR] Exception caught: " << e.what() << std::endl;
 		}
-
-		std::string serverResponse;
-		if (!connectionHandler.getFrameAscii(serverResponse, '\0'))
-		{
-			std::cerr << "[ERROR] Failed to receive server response." << std::endl;
-			return 1;
-		}
-		std::cout << "[SERVER MESSAGE] " << serverResponse << std::endl;
-
-		if (serverResponse.find("CONNECTED") == 0)
-		{
-			std::cout << "[INFO] Login successful!" << std::endl;
-		}
-		else
-		{
-			std::cerr << "[ERROR] Login failed: " << serverResponse << std::endl;
-			return 1;
-		}
-
-		// Create and start threads
-		KeyboardInput keyboardInput(std::ref(protocol), running, disconnectReceived);
-		std::thread inputThread(&KeyboardInput::start, &keyboardInput);
-		std::thread ioThread(socketReader, std::ref(connectionHandler), std::ref(protocol), std::ref(running), std::ref(disconnectReceived));
-
-		// Wait for threads to finish
-		inputThread.join();
-		ioThread.join();
+		disconnectReceived.store(false);
 	}
-	else
-	{
-		std::cerr << "[ERROR] Invalid command. Expected: login <host:port> <username> <password>" << std::endl;
-		return 1;
-	}
 
-	std::cout << "[INFO] Client exited." << std::endl;
+	std::cout << "[INFO] Client Stoped." << std::endl;
 	return 0;
 }
+
 void socketReader(ConnectionHandler &connectionHandler, StompProtocol &protocol, std::atomic<bool> &running, std::atomic<bool> &disconnectReceived)
 {
 	while (running.load())
@@ -118,7 +126,7 @@ void socketReader(ConnectionHandler &connectionHandler, StompProtocol &protocol,
 
 			if (disconnectReceived.load())
 			{
-				running.store(false);
+				std::cout << "[INFO] Disconnect received. Shutting down." << std::endl;
 				break;
 			}
 		}

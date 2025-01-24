@@ -18,8 +18,12 @@ private:
     ConnectionHandler *activeConnectionHandler;
     bool connectionActive;
     std::map<std::string, std::map<std::string, std::vector<Event>>> channelUserEvents;
-    int lastReceiptId = MAXFLOAT;
+    int lastReceiptId;
     int reciptCounter;
+
+    mutable std::mutex subscriptionsMutex;
+    mutable std::mutex eventsMutex;
+    mutable std::mutex connectionMutex;
 
 public:
     StompProtocol();
@@ -56,4 +60,5 @@ public:
 
     void storeEvent(const std::string &channelName, const std::string &user, const Event &event);
     std::vector<Event> getEventsForSummary(const std::string &channelName, const std::string &user) const;
+    void clearEventsInChannel(const std::string &channelName);
 };

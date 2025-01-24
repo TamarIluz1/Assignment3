@@ -15,12 +15,15 @@ StompProtocol::~StompProtocol() { clearConnectionHandler(); }
 
 void StompProtocol::setActiveConnectionHandler(ConnectionHandler *handler)
 {
+    std::lock_guard<std::mutex> lock(connectionMutex);
     activeConnectionHandler = handler;
     connectionActive = true;
 }
 
 void StompProtocol::clearConnectionHandler()
 {
+
+    std::lock_guard<std::mutex> lock(connectionMutex);
     if (activeConnectionHandler)
     {
         activeConnectionHandler->close();
@@ -57,6 +60,7 @@ void StompProtocol::setReciptCounter(int reciptCounter)
 
 int StompProtocol::getNextSubscriptionId() const
 {
+
     return nextSubscriptionId;
 }
 
@@ -153,14 +157,31 @@ void StompProtocol::processFrame(const Frame &frame, std::atomic<bool> &disconne
     }
     else if (command == "ERROR")
     {
-        std::cerr << "[SERVER ERROR] " << frame.getHeader("message") << std::endl;
+        std::cerr << "ERROR FROM THE SERVER:\n\n " << frame.toString() << std::endl;
+        std::lock_guard<std::mutex> subscriptionsLock(subscriptionsMutex);
+        std::lock_guard<std::mutex> eventsLock(eventsMutex);
+        std::lock_guard<std::mutex> connectionLock(connectionMutex);
+        subscriptions.clear();
+        channelUserEvents.clear();
+        connectionActive = false;
+
+        std::cerr << "[SERVER Disconnected the Client] " << std::endl;
+
+        disconnectReceived.store(true);
     }
     else if (command == "RECEIPT")
     {
         std::cout << "[SERVER RECEIPT] " << frame.toString() << std::endl;
         if (frame.getHeader("receipt-id") == std::to_string(lastReceiptId))
         {
-            std::cerr << "[SERVER Disconnected the Client] " << frame.getHeader("message") << std::endl;
+            std::lock_guard<std::mutex> subscriptionsLock(subscriptionsMutex);
+            std::lock_guard<std::mutex> eventsLock(eventsMutex);
+            std::lock_guard<std::mutex> connectionLock(connectionMutex);
+            subscriptions.clear();
+            channelUserEvents.clear();
+            connectionActive = false;
+
+            std::cerr << "[SERVER Disconnected the Client] " << std::endl;
 
             disconnectReceived.store(true);
         }
@@ -169,11 +190,13 @@ void StompProtocol::processFrame(const Frame &frame, std::atomic<bool> &disconne
 
 void StompProtocol::addSubscription(int id, const std::string &channel)
 {
+    std::lock_guard<std::mutex> lock(subscriptionsMutex);
     subscriptions[id] = channel;
 }
 
 void StompProtocol::removeSubscription(int id)
 {
+    std::lock_guard<std::mutex> lock(subscriptionsMutex);
     subscriptions.erase(id);
 }
 
@@ -196,6 +219,7 @@ int StompProtocol::getSubscriptionIdByChannel(const std::string &channelName) co
 
 void StompProtocol::storeEvent(const std::string &channelName, const std::string &user, const Event &event)
 {
+    std::lock_guard<std::mutex> lock(eventsMutex);
     channelUserEvents[channelName][user].push_back(event);
 }
 
@@ -211,4 +235,10 @@ std::vector<Event> StompProtocol::getEventsForSummary(const std::string &channel
         }
     }
     return {};
+}
+
+void StompProtocol::clearEventsInChannel(const std::string &channelName)
+{
+    std::lock_guard<std::mutex> lock(eventsMutex);
+    channelUserEvents[channelName].clear();
 }

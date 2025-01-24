@@ -14,6 +14,11 @@ void KeyboardInput::start()
     std::string input;
     while (running.load())
     {
+        if (disconnectReceived.load())
+        {
+            break;
+        }
+
         std::getline(std::cin, input);
         if (input.empty())
         {
@@ -31,6 +36,7 @@ void KeyboardInput::start()
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    std::cerr << "KeyBoard stoped " << std::endl;
 }
 
 void KeyboardInput::processCommand(const std::string &input)
@@ -39,10 +45,71 @@ void KeyboardInput::processCommand(const std::string &input)
     std::string command;
     iss >> command;
 
-    if (command == "join")
+    if (command == "login")
+    {
+        if (disconnectReceived.load())
+        {
+            // Todo add the object external to this class
+            std::string hostPort, username, password;
+            iss >> hostPort >> username >> password;
+
+            std::string host = hostPort.substr(0, hostPort.find(':'));
+            short port = std::stoi(hostPort.substr(hostPort.find(':') + 1));
+            protocol.clearConnectionHandler();
+            protocol.setActiveConnectionHandler(new ConnectionHandler(host, port));
+            if (!(*protocol.getActiveConnectionHandler()).connect())
+            {
+                std::cerr << "”Could not connect to server" << std::endl;
+                return;
+            }
+
+            protocol.setUsername(username);
+            protocol.setReciptCounter(0);
+            protocol.setNextSubscriptionId(0);
+            protocol.setLastReceiptId(-1);
+
+            Frame connectFrame = protocol.createConnectFrame("stomp.cs.bgu.ac.il", username, password);
+            if (!(*protocol.getActiveConnectionHandler()).sendFrameAscii(connectFrame.toString(), '\0'))
+            {
+                std::cerr << "[ERROR] Failed to send CONNECT frame." << std::endl;
+                disconnectReceived.store(false);
+                return;
+            }
+
+            std::string serverResponse;
+            if (!(*protocol.getActiveConnectionHandler()).getFrameAscii(serverResponse, '\0'))
+            {
+                std::cerr << "[ERROR] Failed to receive server response." << std::endl;
+                return;
+            }
+            std::cout << "[SERVER MESSAGE] " << serverResponse << std::endl;
+
+            if (serverResponse.find("CONNECTED") == 0)
+            {
+                std::cout << "[INFO] Login successful!" << std::endl;
+            }
+            else
+            {
+                std::cerr << "[ERROR] Login failed: " << serverResponse << std::endl;
+                return;
+            }
+
+            disconnectReceived.store(false);
+        }
+        else
+        {
+            std::cerr << "[ERROR] Already logged in." << std::endl;
+        }
+    }
+    else if (command == "join")
     {
         std::string channelName;
         iss >> channelName;
+        if (protocol.getSubscriptionIdByChannel(channelName) != -1)
+        {
+            std::cerr << "[ERROR] Already subscribed to channel: " << channelName << std::endl;
+            return;
+        }
 
         int subscriptionId = protocol.getNextSubscriptionId();
         protocol.addSubscription(subscriptionId, channelName);
@@ -62,6 +129,7 @@ void KeyboardInput::processCommand(const std::string &input)
         {
             Frame frame = protocol.createUnsubscribeFrame(subscriptionId);
             protocol.removeSubscription(subscriptionId);
+            protocol.clearEventsInChannel(channelName);
 
             protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0');
 
@@ -76,6 +144,12 @@ void KeyboardInput::processCommand(const std::string &input)
     {
         std::string channelName, user, filePath;
         iss >> channelName >> user >> filePath;
+
+        if (protocol.getSubscriptionIdByChannel(channelName) == -1)
+        {
+            std::cerr << "[ERROR] You are not subscribed to the channel of the event." << std::endl;
+            return;
+        }
         // Get the current working directory
         std::string currentDir = getCurrentWorkingDir();
 
@@ -146,12 +220,11 @@ void KeyboardInput::processCommand(const std::string &input)
         std::cout << "[INFO] Waiting for DISCONNECT receipt..." << std::endl;
         protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0');
 
-        while (running.load() && !disconnectReceived.load())
+        while (!disconnectReceived.load())
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
 
-        running.store(false); // Important: Stop the running loop *after* receiving the receipt
         std::cout << "[INFO] Logged out successfully." << std::endl;
     }
     else if (command == "report")
@@ -160,6 +233,11 @@ void KeyboardInput::processCommand(const std::string &input)
         std::string json_path;
         iss >> json_path;
         names_and_events parsedData = parseEventsFile(json_path);
+        if (parsedData.events.empty())
+        {
+            std::cerr << "[ERROR] No events found in the JSON file." << std::endl;
+            return;
+        }
 
         // Assuming you want to send all events in the list
         if (!parsedData.events.empty())

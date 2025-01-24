@@ -6,11 +6,12 @@
 
 using boost::asio::ip::tcp;
 
-class ConnectionHandler {
+class ConnectionHandler
+{
 private:
 	const std::string host_;
 	const short port_;
-	boost::asio::io_service io_service_;   // Provides core I/O functionality
+	boost::asio::io_service io_service_; // Provides core I/O functionality
 	tcp::socket socket_;
 
 public:
@@ -48,4 +49,9 @@ public:
 	// Close down the connection properly.
 	void close();
 
-}; //class ConnectionHandler
+	bool operator==(const ConnectionHandler &other) const
+	{
+		return this->host_ == other.host_ && this->port_ == other.port_;
+	}
+
+}; // class ConnectionHandler
