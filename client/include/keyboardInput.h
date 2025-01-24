@@ -1,32 +1,27 @@
-
 #pragma once
 
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 #include <string>
-#include <iostream>
-#include <map>
-#include <vector>
 #include "../include/StompProtocol.h"
-#include "../include/ConnectionHandler.h"
+#include "../include/Frame.h"
 
 class KeyboardInput
 {
 private:
     StompProtocol &protocol;
-    std::queue<Frame> &userToServerQueue;
-    std::mutex &queueMutex;
     std::atomic<bool> &running;
-    std::condition_variable &queueCondition;
+    std::atomic<bool> &disconnectReceived;
 
-    // Command Handlers
-    void handleLogin(std::istringstream &iss);
-    void handleLogout();
-    void handleJoin(std::istringstream &iss);
-    void handleExit(std::istringstream &iss);
-    void handleReport(std::istringstream &iss);
-    void enqueueFrame(const Frame &frame);
+    void processCommand(const std::string &input);
 
 public:
-    KeyboardInput(StompProtocol &protocol, std::queue<Frame> &queue, std::mutex &mutex,
-                  std::atomic<bool> &running, std::condition_variable &condition);
+    KeyboardInput(StompProtocol &protocol, std::atomic<bool> &running, std::atomic<bool> &disconnectReceived);
     void start();
+    void createDirectoryIfNotExists(const std::string &dirPath);
+    // Function to get the current working directory
+    std::string getCurrentWorkingDir();
+    std::string epochToDate(int epochTime);
 };

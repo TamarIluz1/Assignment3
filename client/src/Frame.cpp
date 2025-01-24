@@ -4,6 +4,15 @@
 #include <stdexcept>
 
 Frame::Frame(const std::string &command) : command(command) {}
+
+// Frame* Frame::clone() const
+// {
+//     Frame *frame = new Frame(command);
+//     frame->headers = headers;
+//     frame->body = body;
+//     return frame;
+// }
+
 Frame::~Frame() {}
 void Frame::addHeader(const std::string &key, const std::string &value)
 {
@@ -63,7 +72,7 @@ Frame Frame::parseFrame(const std::string &rawFrame)
     return frame;
 }
 
-std::string Frame::toString()
+std::string Frame::toString() const
 {
     std::ostringstream sb;
     sb << command << "\n";
@@ -73,6 +82,22 @@ std::string Frame::toString()
     if (!body.empty())
         sb << "\n"
            << body;
-    sb << '\0';
     return sb.str();
+}
+
+std::string Frame::getUserNameFromBody() const
+{
+    std::istringstream bodyStream(this->getBody());
+    std::string line;
+    std::string user;
+
+    while (std::getline(bodyStream, line))
+    {
+        if (line.find("user:") == 0)
+        {
+            user = line.substr(5); // Extract the value after "user:"
+            break;
+        }
+    }
+    return user;
 }
