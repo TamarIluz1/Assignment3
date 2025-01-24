@@ -2,13 +2,13 @@ package bgu.spl.net.impl.stomp;
 
 import bgu.spl.net.api.StompMessagingProtocol;
 import bgu.spl.net.srv.ConnectionHandler;
-import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
 import bgu.spl.net.srv.User;
 import java.util.Map;
 import java.util.logging.Logger;
 import java.util.HashMap;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashSet;
 
 //Added this class by Tamar 15/1
@@ -19,7 +19,15 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
     private int connectionId;
     private ConnectionsImpl<String> connections;
+<<<<<<< HEAD
     
+=======
+    private Map<String, String> subscriptionsIdtoChannelName = new HashMap<>();
+    private Map<String, Set<String>> channeltoSubscriptions = new HashMap<>();
+    private ConcurrentHashMap<String, Integer> subscriptionIdToConnectionId = new ConcurrentHashMap();
+    //private Map<String, Map<String, String>> subsByChannel = new HashMap<>(); //channel -> connectionId -> subscriptionId
+    private Map<String, ConnectionHandler<String>> subscriptionsIDToHandlers = new HashMap<>();
+>>>>>>> 5f139896a5f784d58cb9bdc014c89a1598c872dc
     private boolean shouldTerminate = false;
     // TODO add field of subscription to
     
@@ -96,8 +104,13 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             createUser(new User(username, password, (ConnectionHandler)connections.getCHbyConnectionID(connectionId), connectionId));
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);
+<<<<<<< HEAD
             logger.info("Sent CONNECTED frame - new user" + username);
             connections.addUserConnection(connectionId, username);
+=======
+                connections.send(connectionId, connectedFrame.toString());
+            logger.info("Sent CONNECTED frame - new user" + username + "CH is null? " + connections.getCHbyConnectionID(connectionId));
+>>>>>>> 5f139896a5f784d58cb9bdc014c89a1598c872dc
             return connectedFrame.toString();
             
         }
