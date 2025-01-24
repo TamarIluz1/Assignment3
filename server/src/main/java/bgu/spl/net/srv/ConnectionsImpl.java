@@ -1,14 +1,16 @@
 package bgu.spl.net.srv;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import java.util.logging.Logger;
 import bgu.spl.net.impl.stomp.Frame;
 
 public class ConnectionsImpl<T> implements Connections<T> {
@@ -22,10 +24,33 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     //NEW ARCHITECTURE BY NOAM
     private ConcurrentHashMap<String, User<T>> userDetails; 
-    private ConcurrentMap<String, Set<Integer>> channelSubscribers;
-    private ConcurrentMap<Integer, ConnectionHandler<T>> ActiveConnectionsToHandler;
+    private ConcurrentMap<String, Set<String>> channelSubscribers; // stored with USERNAME SET VALUE
+    private ConcurrentMap<Integer, ConnectionHandler<T>> ActiveConnectionsToHandler; // connectionId -> ConnectionHandler
+    private ConcurrentHashMap<Integer, String> connectionIdToUsername = new ConcurrentHashMap<>();
+    Logger logger = Logger.getLogger("ConnectionsImpl");
     private AtomicInteger msgIdCounter = new AtomicInteger();
 
+    //private ConcurrentHashMap<String, String> subscriptionsIdtoChannelName = new ConcurrentHashMap<>();
+    //private ConcurrentHashMap<String, Set<String>> channeltoSubscriptions = new ConcurrentHashMap<>();
+    //private ConcurrentHashMap<String, ConnectionHandler<String>> subscriptionsIDToHandlers = new ConcurrentHashMap<>(); //COMPLETELY WRONG
+    //private ConcurrentHashMap<String, Integer> subscriptionIdToConnectionId = new ConcurrentHashMap();
+    //private ConcurrentHashMap<String, Map<String, String>> connectionIdToMapsubsIDtoChannel = new ConcurrentHashMap();
+
+
+    // public Map<String, ConnectionHandler<String>> getSubscriptionsIDToHandlers() {
+    //     return subscriptionsIDToHandlers;
+    // }
+    // public Map<String, String> getSubscriptionsIdtoChannelName() {
+    //     return subscriptionsIdtoChannelName;
+    // }
+    public Map<String, Set<String>> getChanneltoSubscriptions() {
+        return channelSubscribers;
+    }
+    // public ConcurrentHashMap<String, Integer> getSubscriptionIdToConnectionId() {
+    //     return subscriptionIdToConnectionId;
+    // }
+
+ 
     public ConnectionsImpl() {
         userDetails = new ConcurrentHashMap<>();
         channelSubscribers = new ConcurrentHashMap<>();
@@ -38,9 +63,8 @@ public class ConnectionsImpl<T> implements Connections<T> {
     // Send a regularmessage
     @Override
     public boolean send(int connectionId, T msg) {
-        ConnectionHandler<T> handler = ActiveConnectionsToHandler.get(connectionId);
+        ConnectionHandler<T> handler = userDetails.get(connectionIdToUsername.get(connectionId)).getConnectionHandler();
         if (handler != null) {
-
             handler.send(connectionId,msg);
             return true;
         }
@@ -50,53 +74,83 @@ public class ConnectionsImpl<T> implements Connections<T> {
 
     @Override
     public void send(String channel, T msg) {
-        Set<Integer> subscribers = channelSubscribers.get(channel);
+        Set<String> subscribers = channelSubscribers.get(channel);
         if (subscribers != null) {
-            for (int connectionId : subscribers) {
-                send(connectionId, msg);
+            for (String username : subscribers) {
+                send(userDetails.get(username).getConnectionId(), msg);
             }
         }
     }
 
     public boolean checkLogin(String username, String password){
         // returns true iff the username exists and the password is correct
-        return userDetails.containsKey(username) && userDetails.get(username).equals(password);
+        return userDetails.containsKey(username) && userDetails.get(username).getPassword().equals(password);
     }
 
 
     @Override
-    public void disconnect(int connectionId) {
-        ActiveConnectionsToHandler.remove(connectionId);
-        // Remove from all subscribed topics
-        for (Set<Integer> subscribers : channelSubscribers.values()) {
-            subscribers.remove(connectionId);
+    public void disconnect(int connectionId){
+        synchronized(connectionIdToUsername){
+            String usernameLoggedOut = connectionIdToUsername.get(connectionId);
+            if (usernameLoggedOut == null) {
+                return;
+            }
+            logger.info("Disconnecting " + usernameLoggedOut);
+            User user = userDetails.get(usernameLoggedOut);
+            synchronized(user){
+            user.logout();
+            }
+            connectionIdToUsername.remove(connectionId);
+            // Remove from all subscribed topics
+            for (Set<String> subscribers : channelSubscribers.values()) {
+                subscribers.remove(usernameLoggedOut);
+            }
+            
+
         }
+
+        
     }
 
     public void addConnection(int connectionId, ConnectionHandler<T> handler) {
         ActiveConnectionsToHandler.putIfAbsent(connectionId, handler);
     }
 
-    public void subscribe(int connectionId, String channel) {
-        channelSubscribers.putIfAbsent(channel, new HashSet<>());
-        channelSubscribers.get(channel).add(connectionId);
+    public void addUserConnection(int connectionId, String username) {
+        connectionIdToUsername.put(connectionId, username);
+        userDetails.get(username).setConnectionId(connectionId);
+        userDetails.get(username).setCH(ActiveConnectionsToHandler.get(connectionId));
     }
 
-    public void unsubscribe(int connectionId, String channel) {
-        Set<Integer> subscribers = channelSubscribers.get(channel);
-        if (subscribers != null) {
-            subscribers.remove(connectionId);
+    public void subscribe(int connectionId, String channel, Integer subscriptionId) {
+        String usernameRegistered = connectionIdToUsername.get(connectionId);
+        logger.info("Subscribing " + usernameRegistered + " to channel " + channel);
+        User currUser = userDetails.get(usernameRegistered);
+
+        channelSubscribers.putIfAbsent(channel, new HashSet<>());
+        channelSubscribers.get(channel).add(usernameRegistered);
+        logger.info("Subscribed logg " + subscriptionId + " to channel " + channel);
+        currUser.addSubscription(subscriptionId, channel);
+    }
+
+    public void unsubscribe(int connectionId, String channel, Integer subscriptionId) {
+        Set<String> subscribers = channelSubscribers.get(channel);
+        User currUser = userDetails.get(connectionIdToUsername.get(connectionId));
+        if (subscribers != null) { // TODO when it will be null?
+            subscribers.remove(connectionIdToUsername.get(connectionId));
             if (subscribers.isEmpty()) {
                 channelSubscribers.remove(channel);
             }
         }
+        
+        currUser.removeSubscription(subscriptionId, channel);
     }
 
     public String getPasswordByUsername(String name){
         return userDetails.get(name).getPassword();
     }
 
-    public int getNewMessageID(){
+    public Integer getNewMessageID(){
         return msgIdCounter.getAndIncrement();
     }
 
@@ -108,7 +162,7 @@ public class ConnectionsImpl<T> implements Connections<T> {
         return userDetails;
     }
 
-    public Set<Integer> getSubscribers(String channel){
+    public Set<String> getSubscribers(String channel){
         return channelSubscribers.get(channel);
     }
 
@@ -118,5 +172,11 @@ public class ConnectionsImpl<T> implements Connections<T> {
         }
         return ActiveConnectionsToHandler.get(connectionId);
     }
+
+    public String getUserByConnectionId(int connectionId){
+        return connectionIdToUsername.get(connectionId);
+    }
+
+
     
 }
