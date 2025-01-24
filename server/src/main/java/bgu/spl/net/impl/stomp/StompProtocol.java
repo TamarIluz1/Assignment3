@@ -19,15 +19,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
     private int connectionId;
     private ConnectionsImpl<String> connections;
-<<<<<<< HEAD
     
-=======
-    private Map<String, String> subscriptionsIdtoChannelName = new HashMap<>();
-    private Map<String, Set<String>> channeltoSubscriptions = new HashMap<>();
-    private ConcurrentHashMap<String, Integer> subscriptionIdToConnectionId = new ConcurrentHashMap();
-    //private Map<String, Map<String, String>> subsByChannel = new HashMap<>(); //channel -> connectionId -> subscriptionId
-    private Map<String, ConnectionHandler<String>> subscriptionsIDToHandlers = new HashMap<>();
->>>>>>> 5f139896a5f784d58cb9bdc014c89a1598c872dc
     private boolean shouldTerminate = false;
     // TODO add field of subscription to
     
@@ -106,6 +98,8 @@ public class StompProtocol implements StompMessagingProtocol<String> {
                 connectedFrame.setBody(null);
             logger.info("Sent CONNECTED frame - new user" + username);
             connections.addUserConnection(connectionId, username);
+            connections.send(connectionId, connectedFrame.toString());
+            logger.info("Sent CONNECTED frame - new user" + username + "CH is null? " + connections.getCHbyConnectionID(connectionId));
             return connectedFrame.toString();
             
         }
