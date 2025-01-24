@@ -27,6 +27,9 @@ private:
 
 public:
     StompProtocol();
+    StompProtocol(const StompProtocol &other) = delete;
+    StompProtocol &operator=(const StompProtocol &) = delete;
+
     ~StompProtocol();
 
     void setActiveConnectionHandler(ConnectionHandler *handler);

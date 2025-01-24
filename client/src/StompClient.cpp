@@ -83,9 +83,8 @@ int main(int argc, char *argv[])
 				}
 
 				// Create and start threads
-				std::thread inputThread(&KeyboardInput::start, &keyboardInput);
 				std::thread ioThread(socketReader, std::ref(*connectionHandler), std::ref(protocol), std::ref(running), std::ref(disconnectReceived));
-				inputThread.join();
+				keyboardInput.start();
 				ioThread.join();
 			}
 			else
