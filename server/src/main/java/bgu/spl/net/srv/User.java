@@ -8,7 +8,8 @@ public class User<T> {
     private boolean isLoggedIn;
     private ConnectionHandler<T> connectionHandler;
     private int connectionId;
-    private final ConcurrentHashMap<Integer, String> channels; 
+    private ConcurrentHashMap<Integer, String> channels; // subscriptionId -> channelName
+    private ConcurrentHashMap<String, Integer> channelToSubscriptionId; // channelName -> subscriptionId
  
     public User(String username, String password, ConnectionHandler<T> connectionHandler, int connectionId) {
         this.username = username;
@@ -17,6 +18,7 @@ public class User<T> {
         this.connectionHandler = connectionHandler;
         this.connectionId = connectionId;
         this.channels = new ConcurrentHashMap<>();
+        this.channelToSubscriptionId = new ConcurrentHashMap<>();
     }
 
     public String getUsername() {
@@ -45,5 +47,39 @@ public class User<T> {
 
     public Integer getConnectionId(){
         return connectionId;
+    }
+
+    public void addSubscription(int subscriptionId, String channelName) {
+        channels.put(subscriptionId, channelName);
+        channelToSubscriptionId.put(channelName, subscriptionId);
+    }
+
+    public ConnectionHandler<T> getConnectionHandler() {
+        return connectionHandler;
+    }
+
+    public void removeSubscription(int subscriptionId, String channelName) {
+        channels.remove(subscriptionId);
+        channelToSubscriptionId.remove(channelName);
+    }
+
+    public boolean isSubscriptionExist(int subscriptionId){
+        return channels.containsKey(subscriptionId);
+    }
+
+    public String getChannelBySubscriptionId(int subscriptionId){
+        return channels.get(subscriptionId);
+    }
+
+    public Integer getSubscriptionIdByChannel(String channel){
+        return channelToSubscriptionId.get(channel);
+    }
+
+    public void logout(){
+        isLoggedIn = false;
+        channels = new ConcurrentHashMap<>();
+        channelToSubscriptionId = new ConcurrentHashMap<>();
+        setConnectionId(-1);
+        setCH(null);
     }
 }
