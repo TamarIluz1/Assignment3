@@ -11,33 +11,32 @@
 #include <iostream>
 
 StompProtocol::StompProtocol()
-    : username(""), subscriptions(), nextSubscriptionId(0), activeConnectionHandler(nullptr),
+    : username(""), subscriptions(), nextSubscriptionId(-1), activeConnectionHandler(nullptr),
       connectionActive(false), channelUserEvents(), lastReceiptId(0), reciptCounter(0),
       subscriptionsMutex(), eventsMutex(), connectionMutex() {}
 
 StompProtocol::~StompProtocol() { clearConnectionHandler(); }
 
-StompProtocol::StompProtocol(const StompProtocol &other)
-    : username(other.username), nextSubscriptionId(other.nextSubscriptionId),
-      activeConnectionHandler(other.activeConnectionHandler), connectionActive(other.connectionActive),
-      lastReceiptId(other.lastReceiptId), reciptCounter(other.reciptCounter),
-      subscriptions(other.subscriptions), channelUserEvents(other.channelUserEvents) {}
+// StompProtocol::StompProtocol(const StompProtocol &other)
+//     : username(other.username), nextSubscriptionId(other.nextSubscriptionId),
+//       activeConnectionHandler(other.activeConnectionHandler), connectionActive(other.connectionActive),
+//       lastReceiptId(other.lastReceiptId), reciptCounter(other.reciptCounter),
+//       subscriptions(other.subscriptions), channelUserEvents(other.channelUserEvents) {}
 
-StompProtocol &StompProtocol::operator=(const StompProtocol &other)
-{
-    if (this != &other)
-    {
-        username = other.username;
-        subscriptions = other.subscriptions;
-        nextSubscriptionId = other.nextSubscriptionId;
-        activeConnectionHandler = other.activeConnectionHandler;
-        connectionActive = other.connectionActive;
-        channelUserEvents = other.channelUserEvents;
-        lastReceiptId = other.lastReceiptId;
-        reciptCounter = other.reciptCounter;
-    }
-    return *this;
-}
+// StompProtocol::StompProtocol(const StompProtocol &other)
+//     : username(other.username),
+//       subscriptions(other.subscriptions),
+//       nextSubscriptionId(other.nextSubscriptionId),
+//       activeConnectionHandler(other.activeConnectionHandler), // Be cautious with raw pointers
+//       connectionActive(other.connectionActive),
+//       channelUserEvents(other.channelUserEvents),
+//       lastReceiptId(other.lastReceiptId),
+//       reciptCounter(other.reciptCounter),
+//       subscriptionsMutex(), // Explicitly default-initialize mutexes
+//       eventsMutex(),
+//       connectionMutex()
+// {
+// }
 
 void StompProtocol::setActiveConnectionHandler(ConnectionHandler *handler)
 {
@@ -229,7 +228,8 @@ void StompProtocol::removeSubscription(int id)
 
 int StompProtocol::getNextSubscriptionId()
 {
-    return nextSubscriptionId++;
+    nextSubscriptionId++;
+    return nextSubscriptionId;
 }
 
 int StompProtocol::getSubscriptionIdByChannel(const std::string &channelName) const

@@ -27,7 +27,7 @@ private:
 
 public:
     StompProtocol();
-    StompProtocol(const StompProtocol &other) = delete;
+    StompProtocol(const StompProtocol &) = delete;
     StompProtocol &operator=(const StompProtocol &) = delete;
 
     ~StompProtocol();

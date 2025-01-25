@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 
 				protocol.setUsername(username);
 				protocol.setReciptCounter(0);
-				protocol.setNextSubscriptionId(0);
+				protocol.setNextSubscriptionId(-1);
 				protocol.setLastReceiptId(-1);
 				protocol.setActiveConnectionHandler(std::ref(connectionHandler));
 
