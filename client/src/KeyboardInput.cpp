@@ -4,6 +4,7 @@
 #include <fstream>
 #include <ctime>
 #include <iomanip>
+#include <filesystem>
 
 KeyboardInput::KeyboardInput(StompProtocol &protocol, std::atomic<bool> &running, std::atomic<bool> &disconnectReceived)
     : protocol(protocol),
@@ -150,19 +151,18 @@ void KeyboardInput::processCommand(const std::string &input)
             std::cerr << "[ERROR] You are not subscribed to the channel of the event." << std::endl;
             return;
         }
-        // Get the current working directory
-        std::string currentDir = getCurrentWorkingDir();
 
-        // Prepend the client/bin directory to the file path
-        std::string binDir = currentDir + "/../bin/";
-        std::string binFilePath = binDir + filePath;
+        // Get the directory path from the file path
+        std::string dirPath = filePath.substr(0, filePath.find_last_of("/\\"));
 
-        // Ensure the bin directory exists
-        createDirectoryIfNotExists(binDir);
-
+        // Create directories if they do not exist
+        if (!dirPath.empty())
+        { // Only attempt to create if there's a valid directory path
+            createDirectories(dirPath);
+        }
         std::vector<Event> events(protocol.getEventsForSummary(channelName, user));
 
-        std::ofstream file(binFilePath, std::ios::out);
+        std::ofstream file(filePath, std::ios::out);
         if (!file.is_open())
         {
             std::cerr << "[ERROR] Failed to open file: " << filePath << std::endl;
@@ -291,4 +291,35 @@ std::string KeyboardInput::epochToDate(int epochTime)
     std::ostringstream oss;
     oss << std::put_time(tm, "%d/%m/%Y %H:%M:%S");
     return oss.str();
+}
+
+// Function to create directories recursively in C++11
+void KeyboardInput::createDirectories(const std::string &path)
+{
+    std::istringstream ss(path);
+    std::string currentPath;
+    std::string segment;
+    while (std::getline(ss, segment, '/'))
+    {
+        if (!segment.empty())
+        {
+            currentPath += segment + "/";
+            struct stat info;
+            if (stat(currentPath.c_str(), &info) != 0)
+            {
+                // Directory does not exist; create it
+                if (mkdir(currentPath.c_str(), 0777) != 0)
+                {
+                    std::cerr << "[ERROR] Failed to create directory: " << currentPath << std::endl;
+                    return;
+                }
+            }
+            else if (!(info.st_mode & S_IFDIR))
+            {
+                // Exists but not a directory
+                std::cerr << "[ERROR] Path exists but is not a directory: " << currentPath << std::endl;
+                return;
+            }
+        }
+    }
 }
