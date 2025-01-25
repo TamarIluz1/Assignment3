@@ -191,6 +191,10 @@ void KeyboardInput::processCommand(const std::string &input)
              << "Forces Arrival at Scene: " << forcesArrivalCount << "\n\n"
              << "Event Reports:\n\n";
 
+        // sort the events by date and time and after by event name lexicographically
+        std::sort(events.begin(), events.end(), [](const Event &a, const Event &b)
+                  { return a.get_date_time() < b.get_date_time() || (a.get_date_time() == b.get_date_time() && a.get_name() < b.get_name()); });
+
         for (size_t i = 0; i < events.size(); ++i)
         {
             const Event &event = events[i];
@@ -233,33 +237,71 @@ void KeyboardInput::processCommand(const std::string &input)
         std::string json_path;
         iss >> json_path;
         names_and_events parsedData = parseEventsFile(json_path);
+        std::string channelName = parsedData.channel_name;
+        if (channelName.empty())
+        {
+            std::cerr << "[ERROR] No channel name found in the JSON file." << std::endl;
+            return;
+        }
+
+        if (protocol.getSubscriptionIdByChannel(channelName) == -1)
+        {
+            std::cerr << "[ERROR] You are not subscribed to the channel to send it events." << std::endl;
+            return;
+        }
+
         if (parsedData.events.empty())
         {
             std::cerr << "[ERROR] No events found in the JSON file." << std::endl;
             return;
         }
 
-        // Assuming you want to send all events in the list
-        if (!parsedData.events.empty())
+        // get a list of names of the events
+        std::vector<Event> events_by_time;
+        for (Event &event : parsedData.events)
         {
-            for (Event &event : parsedData.events)
+            events_by_time.push_back(event);
+        }
+
+        // sort the events by date the most recent event will be at the end of the list
+        std::sort(events_by_time.begin(), events_by_time.end(), [](const Event &a, const Event &b)
+                  { return a.get_date_time() < b.get_date_time(); });
+
+        // send events to the server that user is subscribed to
+        if (!events_by_time.empty())
+        {
+            for (Event &event : events_by_time)
             {
+
                 event.setEventOwnerUser(protocol.getUsername());
-                std::string channelName = parsedData.channel_name;
-
-                // Create a frame using the event
-                Frame frame = protocol.createSendFrame(parsedData.channel_name, event);
-
-                // Send the frame
+                Frame frame = protocol.createSendFrame(channelName, event);
                 protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0');
-                std::cout << "[INFO] Report sent to channel: " << parsedData.channel_name << " for event: " << event.get_name() << std::endl;
+                std::cout << "[INFO] Report sent to channel: " << channelName << " for event: " << event.get_name() << std::endl;
             }
             std::cout << "[INFO] Reported" << std::endl;
         }
-        else
-        {
-            std::cerr << "[ERROR] No events found in the JSON file." << std::endl;
-        }
+
+        // // Assuming you want to send all events in the list
+        // if (!parsedData.events.empty())
+        // {
+        //     for (Event &event : parsedData.events)
+        //     {
+        //         event.setEventOwnerUser(protocol.getUsername());
+        //         std::string channelName = parsedData.channel_name;
+
+        //         // Create a frame using the event
+        //         Frame frame = protocol.createSendFrame(parsedData.channel_name, event);
+
+        //         // Send the frame
+        //         protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0');
+        //         std::cout << "[INFO] Report sent to channel: " << parsedData.channel_name << " for event: " << event.get_name() << std::endl;
+        //     }
+        //     std::cout << "[INFO] Reported" << std::endl;
+        // }
+        // else
+        // {
+        //     std::cerr << "[ERROR] No events found in the JSON file." << std::endl;
+        // }
     }
     else
     {

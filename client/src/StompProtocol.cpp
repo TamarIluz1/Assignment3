@@ -17,27 +17,6 @@ StompProtocol::StompProtocol()
 
 StompProtocol::~StompProtocol() { clearConnectionHandler(); }
 
-// StompProtocol::StompProtocol(const StompProtocol &other)
-//     : username(other.username), nextSubscriptionId(other.nextSubscriptionId),
-//       activeConnectionHandler(other.activeConnectionHandler), connectionActive(other.connectionActive),
-//       lastReceiptId(other.lastReceiptId), reciptCounter(other.reciptCounter),
-//       subscriptions(other.subscriptions), channelUserEvents(other.channelUserEvents) {}
-
-// StompProtocol::StompProtocol(const StompProtocol &other)
-//     : username(other.username),
-//       subscriptions(other.subscriptions),
-//       nextSubscriptionId(other.nextSubscriptionId),
-//       activeConnectionHandler(other.activeConnectionHandler), // Be cautious with raw pointers
-//       connectionActive(other.connectionActive),
-//       channelUserEvents(other.channelUserEvents),
-//       lastReceiptId(other.lastReceiptId),
-//       reciptCounter(other.reciptCounter),
-//       subscriptionsMutex(), // Explicitly default-initialize mutexes
-//       eventsMutex(),
-//       connectionMutex()
-// {
-// }
-
 void StompProtocol::setActiveConnectionHandler(ConnectionHandler *handler)
 {
     std::lock_guard<std::mutex> lock(connectionMutex);

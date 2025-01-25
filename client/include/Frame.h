@@ -13,7 +13,6 @@ private:
 
 public:
     Frame(const std::string &command);
-    // Frame *clone();
 
     ~Frame();
 

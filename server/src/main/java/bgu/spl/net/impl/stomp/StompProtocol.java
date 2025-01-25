@@ -66,12 +66,12 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
         for (User<String> user : connections.getUsers().values()) {
             if (user.isLoggedIn() && user.getConnectionId() == connectionId) {
-                return handleError("ERROR\nmessage:The client is already logged in, log out before trying again\n\n^@");
+                return handleError("The client is already logged in, log out before trying again\n\n^@");
             }
         }
 
         if (connections.getUserDetails(username) != null && connections.getUserDetails(username).isLoggedIn()) {
-            return handleError("ERROR\nmessage:User already logged in\n\n^@");
+            return handleError("User already logged in\n\n^@");
         }
 
         Frame connectedFrame = new Frame("CONNECTED");
@@ -79,7 +79,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             // login existing user
             logger.info("PASSWORD " + password);
             if (!connections.checkLogin(username, password)) {
-                return handleError("ERROR\nmessage:Wrong password\n\n^@");
+                return handleError("Wrong password\n\n^@");
             }
             // login details are valid
             loginExistingUser(username);
@@ -137,7 +137,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             for (String userSubscribed : connections.getChanneltoSubscriptions().get(destination)){
                 // for every subscriptionId, well check its not the of the current connection.
                 if (connections.getUserByConnectionId(connectionId).equals(userSubscribed)){
-                    return handleError("ERROR\nmessage:Already subscribed to this channel\n\n^@");
+                    return handleError("Already subscribed to this channel\n\n^@");
                 }
             }
         }

@@ -3,15 +3,8 @@
 #include <sstream>
 #include <stdexcept>
 
-Frame::Frame(const std::string &command) : command(command) {}
-
-// Frame* Frame::clone() const
-// {
-//     Frame *frame = new Frame(command);
-//     frame->headers = headers;
-//     frame->body = body;
-//     return frame;
-// }
+Frame::Frame(const std::string &command)
+    : command(command), headers(), body("") {}
 
 Frame::~Frame() {}
 void Frame::addHeader(const std::string &key, const std::string &value)
