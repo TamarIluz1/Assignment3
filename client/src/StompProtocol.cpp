@@ -12,7 +12,7 @@
 
 StompProtocol::StompProtocol()
     : username(""), subscriptions(), nextSubscriptionId(-1), activeConnectionHandler(nullptr),
-      connectionActive(false), channelUserEvents(), lastReceiptId(0), reciptCounter(0),
+      connectionActive(false), channelUserEvents(), lastReceiptId(0), reciptCounter(0), exitReceipts(), joinReceipts(),
       subscriptionsMutex(), eventsMutex(), connectionMutex() {}
 
 StompProtocol::~StompProtocol() { clearConnectionHandler(); }
@@ -176,6 +176,8 @@ void StompProtocol::processFrame(const Frame &frame, std::atomic<bool> &disconne
     }
     else if (command == "RECEIPT")
     {
+
+        int recipedId = std::stoi(frame.getHeader("receipt-id"));
         std::cout << "[SERVER RECEIPT] " << frame.toString() << std::endl;
         if (frame.getHeader("receipt-id") == std::to_string(lastReceiptId))
         {
@@ -189,6 +191,29 @@ void StompProtocol::processFrame(const Frame &frame, std::atomic<bool> &disconne
             std::cerr << "[SERVER Disconnected the Client] " << std::endl;
 
             disconnectReceived.store(true);
+        }
+        else if (exitReceipts[recipedId].empty() == false)
+        {
+            std::string channel = exitReceipts[recipedId];
+            removeSubscription(getSubscriptionIdByChannel(channel));
+            exitReceipts.erase(recipedId);
+            std::cout << "[INFO] Exited channel: " << channel << std::endl;
+        }
+        else if (joinReceipts.find(recipedId) != joinReceipts.end())
+        {
+            auto it = joinReceipts.find(recipedId);
+            if (it != joinReceipts.end())
+            {
+                std::string channel = it->second.first;
+                int subscriptionId = it->second.second;
+                addSubscription(subscriptionId, channel);
+                joinReceipts.erase(it);
+                std::cout << "[INFO] Joined channel: " << channel << std::endl;
+            }
+            else
+            {
+                std::cerr << "[ERROR] Receipt ID not found in joinReceipts: " << recipedId << std::endl;
+            }
         }
     }
 }
@@ -246,5 +271,25 @@ std::vector<Event> StompProtocol::getEventsForSummary(const std::string &channel
 void StompProtocol::clearEventsInChannel(const std::string &channelName)
 {
     std::lock_guard<std::mutex> lock(eventsMutex);
-    channelUserEvents[channelName].clear();
+    // if its nullptr clear all events
+    if (channelName.empty())
+    {
+        channelUserEvents.clear();
+    }
+    else
+    {
+        channelUserEvents[channelName].clear();
+    }
+}
+
+void StompProtocol::setExitReceipt(int receipt_id, std::string channel)
+{
+    std::lock_guard<std::mutex> lock(subscriptionsMutex);
+    exitReceipts[receipt_id] = channel;
+}
+
+void StompProtocol::setJoinReceipt(int receipt_id, const std::string channel, int subscription_id)
+{
+    std::lock_guard<std::mutex> lock(subscriptionsMutex);
+    joinReceipts[receipt_id] = std::make_pair(channel, subscription_id);
 }

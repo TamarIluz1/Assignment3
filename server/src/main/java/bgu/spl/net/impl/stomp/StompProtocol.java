@@ -125,7 +125,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         Integer subscriptionID = Integer.parseInt(frame.getHeaders().get("id"));
         String receiptId = frame.getHeaders().get("receipt");
         Frame receiptFrame = new Frame("RECEIPT");
-        receiptFrame.addHeader("recipt", receiptId);
+        receiptFrame.addHeader("receipt-id", receiptId);
         receiptFrame.setBody(null);
 
         if (destination == null || subscriptionID == null) {
@@ -171,7 +171,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         String subscriptionID = frame.getHeaders().get("id");
         String receiptId = frame.getHeaders().get("receipt");
         Frame receiptFrame = new Frame("RECEIPT");
-        receiptFrame.addHeader("recipt", receiptId);
+        receiptFrame.addHeader("receipt-id", receiptId);
         receiptFrame.setBody(null);
         if (subscriptionID == null || !user.isSubscriptionExist(Integer.parseInt(subscriptionID))) {
             return handleError("Invalid or missing id in UNSUBSCRIBE frame");

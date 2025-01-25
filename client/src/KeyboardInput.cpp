@@ -113,7 +113,8 @@ void KeyboardInput::processCommand(const std::string &input)
         }
 
         int subscriptionId = protocol.getNextSubscriptionId();
-        protocol.addSubscription(subscriptionId, channelName);
+        // protocol.addSubscription(subscriptionId, channelName);
+        protocol.setJoinReceipt(protocol.getReciptCounter(), channelName, subscriptionId);
 
         Frame frame = protocol.createSubscribeFrame(channelName, subscriptionId);
         protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0');
@@ -128,9 +129,10 @@ void KeyboardInput::processCommand(const std::string &input)
         int subscriptionId = protocol.getSubscriptionIdByChannel(channelName);
         if (subscriptionId != -1)
         {
+            int reciptCounter = protocol.getReciptCounter();
+            protocol.setExitReceipt(reciptCounter, channelName);
             Frame frame = protocol.createUnsubscribeFrame(subscriptionId);
-            protocol.removeSubscription(subscriptionId);
-            protocol.clearEventsInChannel(channelName);
+            // protocol.removeSubscription(subscriptionId);
 
             protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0');
 
@@ -220,6 +222,8 @@ void KeyboardInput::processCommand(const std::string &input)
     }
     else if (command == "logout")
     {
+        protocol.clearEventsInChannel(nullptr);
+
         Frame frame = protocol.createDisconnectFrame();
         std::cout << "[INFO] Waiting for DISCONNECT receipt..." << std::endl;
         protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0');

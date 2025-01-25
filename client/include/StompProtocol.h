@@ -20,6 +20,8 @@ private:
     std::map<std::string, std::map<std::string, std::vector<Event>>> channelUserEvents;
     int lastReceiptId;
     int reciptCounter;
+    std::map<int, std::string> exitReceipts;
+    std::map<int, std::pair<std::string, int>> joinReceipts;
 
     mutable std::mutex subscriptionsMutex;
     mutable std::mutex eventsMutex;
@@ -44,6 +46,8 @@ public:
     void setNextSubscriptionId(int reciptCounter);
     void setLastReceiptId(int lastReceiptId);
     int getLastReceiptId() const;
+    void setExitReceipt(int receipt_id, std::string channel);
+    void setJoinReceipt(int receipt_id, const std::string channel, int subscriptionId);
 
     // Frame creation
     Frame createConnectFrame(const std::string &host, const std::string &username, const std::string &password);
