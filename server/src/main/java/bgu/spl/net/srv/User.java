@@ -67,6 +67,10 @@ public class User<T> {
         return channels.containsKey(subscriptionId);
     }
 
+    public boolean isRegistedToChannel(String channel){
+        return channelToSubscriptionId.containsKey(channel);
+    }
+
     public String getChannelBySubscriptionId(int subscriptionId){
         return channels.get(subscriptionId);
     }

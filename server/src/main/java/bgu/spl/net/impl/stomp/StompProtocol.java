@@ -197,7 +197,9 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             destination = destination.substring(1); // removing slash if exists
         }
         User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));    
-        
+        if (!user.isRegistedToChannel(destination)) {
+            return handleError("User is not subscribed to channel: " + destination);
+        }
         String bigMessage = "";
         // Broadcast message to all subscribers
         for (String userSubbed : connections.getChanneltoSubscriptions().get(destination)) {

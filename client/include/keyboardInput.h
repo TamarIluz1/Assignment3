@@ -24,4 +24,5 @@ public:
     // Function to get the current working directory
     std::string getCurrentWorkingDir();
     std::string epochToDate(int epochTime);
+    void createDirectories(const std::string &path);
 };
