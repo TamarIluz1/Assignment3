@@ -7,7 +7,7 @@
 #include <atomic>
 #include "../include/ConnectionHandler.h"
 #include "../include/StompProtocol.h"
-#include "../include/KeyboardInput.h"
+#include "../include/keyboardInput.h"
 #include "../include/Frame.h"
 
 void socketReader(ConnectionHandler &connectionHandler, StompProtocol &protocol, std::atomic<bool> &running, std::atomic<bool> &disconnectReceived);
