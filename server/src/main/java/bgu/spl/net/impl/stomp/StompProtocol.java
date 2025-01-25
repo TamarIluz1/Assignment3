@@ -167,13 +167,13 @@ public class StompProtocol implements StompMessagingProtocol<String> {
 
     private String handleUnsubscribe(Frame frame) {
         User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));
-        logger.info("Handling UNSUBSCRIBE frame");
+        logger.info("Handling UNSUBSCRIBE frame" + frame.getHeaders().get("id"));
         String subscriptionID = frame.getHeaders().get("id");
         String receiptId = frame.getHeaders().get("receipt");
         Frame receiptFrame = new Frame("RECEIPT");
         receiptFrame.addHeader("recipt", receiptId);
         receiptFrame.setBody(null);
-        if (subscriptionID == null || user.isSubscriptionExist(Integer.parseInt(subscriptionID))) {
+        if (subscriptionID == null || !user.isSubscriptionExist(Integer.parseInt(subscriptionID))) {
             return handleError("Invalid or missing id in UNSUBSCRIBE frame");
         }
         Integer sId = Integer.parseInt(subscriptionID);
