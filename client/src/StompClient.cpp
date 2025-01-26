@@ -78,7 +78,8 @@ int main(int argc, char *argv[])
 				}
 				else
 				{
-					std::cerr << "[ERROR] Login failed: " << std::endl;
+					std::cerr << "[ERROR] Login failed try again " << std::endl;
+					disconnectReceived.store(false);
 					continue;
 				}
 

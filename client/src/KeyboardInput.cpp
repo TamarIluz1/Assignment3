@@ -157,14 +157,14 @@ void KeyboardInput::processCommand(const std::string &input)
             return;
         }
 
-        // Get the directory path from the file path
-        std::string dirPath = filePath.substr(0, filePath.find_last_of("/\\"));
+        // // Get the directory path from the file path
+        // std::string dirPath = filePath.substr(0, filePath.find_last_of("/\\"));
 
-        // Create directories if they do not exist
-        if (!dirPath.empty())
-        { // Only attempt to create if there's a valid directory path
-            createDirectories(dirPath);
-        }
+        // // Create directories if they do not exist
+        // if (!dirPath.empty())
+        // { // Only attempt to create if there's a valid directory path
+        //     createDirectories(dirPath);
+        // }
 
         std::vector<Event> events(protocol.getEventsForSummary(channelName, user));
 
@@ -245,7 +245,6 @@ void KeyboardInput::processCommand(const std::string &input)
     }
     else if (command == "report")
     {
-
         std::string json_path;
         iss >> json_path;
         names_and_events parsedData = parseEventsFile(json_path);
@@ -256,11 +255,11 @@ void KeyboardInput::processCommand(const std::string &input)
             return;
         }
 
-        if (protocol.getSubscriptionIdByChannel(channelName) == -1)
-        {
-            std::cerr << "[ERROR] You are not subscribed to the channel to send it events." << std::endl;
-            return;
-        }
+        // if (protocol.getSubscriptionIdByChannel(channelName) == -1)
+        // {
+        //     std::cerr << "[ERROR] You are not subscribed to the channel to send it events." << std::endl;
+        //     return;
+        // }
         if (parsedData.events.empty())
         {
             std::cerr << "[ERROR] No events found in the JSON file." << std::endl;
@@ -283,13 +282,18 @@ void KeyboardInput::processCommand(const std::string &input)
         bool reported = true;
         for (Event &event : events_by_time)
         {
-            event.setEventOwnerUser(protocol.getUsername());
-            Frame frame = protocol.createSendFrame(channelName, event);
-            if (!protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0'))
+            if (!disconnectReceived.load())
             {
-                reported = false;
-                break;
+                event.setEventOwnerUser(protocol.getUsername());
+                Frame frame = protocol.createSendFrame(channelName, event);
+                if (!protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0'))
+                {
+                    reported = false;
+                    break;
+                }
             }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
             if (disconnectReceived.load())
             {

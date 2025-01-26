@@ -69,12 +69,15 @@ public class StompProtocol implements StompMessagingProtocol<String> {
                 return handleError("The client is already logged in, log out before trying again\n\n^@",-1);
             }
         }
+
+        System.err.println("------------------" + username + " " + password);
         
 
         if (connections.getUserDetails(username) != null && connections.getUserDetails(username).isLoggedIn()) {
             if (!connections.checkLogin(username, password)) {
                 return handleError("Wrong password\n\n^@",-1);
             }
+
             return handleError("User already logged in\n\n^@",-1);
         }
 
@@ -255,28 +258,27 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             Frame errorFrame = new Frame("ERROR");
             errorFrame.addHeader("receipt-id",receiptId+"");
             errorFrame.addHeader("message", errorMessage);
-            User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));
-            if(user != null){
-                user.setLoggedIn(false);
-                user.setConnectionId(-1);
-
-            }
+            connections.send(connectionId, errorFrame.toString());
             connections.disconnect(connectionId);
             shouldTerminate = true;
-            return errorFrame.toString();
+            return "";
         }
         else{
             Frame errorFrame = new Frame("ERROR");
             errorFrame.addHeader("receipt-id","massage-"+connections.getNewMessageID().toString());
             errorFrame.addHeader("message", errorMessage);
-            User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));
-            if(user != null){
-                user.setLoggedIn(false);
-                user.setConnectionId(-1);
+            if(connections.send(connectionId, errorFrame.toString())){
+                logger.info("Sent ERROR frame: " + errorMessage);
+                connections.disconnect(connectionId);
+                shouldTerminate = true;
+                return "";
             }
-            connections.disconnect(connectionId);
-            shouldTerminate = true;
-            return errorFrame.toString();
+            else{
+                shouldTerminate = true;
+                return errorFrame.toString();
+            }
+
+           
 
         }
         

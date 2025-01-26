@@ -164,9 +164,6 @@ void StompProtocol::processFrame(const Frame &frame, std::atomic<bool> &disconne
     {
         std::cerr << "ERROR FROM THE SERVER:\n\n"
                   << frame.toString() << std::endl;
-        std::lock_guard<std::mutex> subscriptionsLock(subscriptionsMutex);
-        std::lock_guard<std::mutex> eventsLock(eventsMutex);
-        std::lock_guard<std::mutex> connectionLock(connectionMutex);
         subscriptions.clear();
         channelUserEvents.clear();
         clearEventsInChannel("");

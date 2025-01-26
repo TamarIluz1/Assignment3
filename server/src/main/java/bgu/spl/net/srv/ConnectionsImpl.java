@@ -63,11 +63,15 @@ public class ConnectionsImpl<T> implements Connections<T> {
     // Send a regularmessage
     @Override
     public boolean send(int connectionId, T msg) {
+        if(!connectionIdToUsername.containsKey(connectionId)){
+            return false;
+        }
         ConnectionHandler<T> handler = userDetails.get(connectionIdToUsername.get(connectionId)).getConnectionHandler();
         if (handler != null) {
             handler.send(connectionId,msg);
             return true;
         }
+        System.out.println("handler is null");
         return false;
     }
 
