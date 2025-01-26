@@ -31,7 +31,6 @@ public class StompEncoderDecoder implements MessageEncoderDecoder<String> {
 
     @Override
     public byte[] encode(String message) {
-        logger.info("Encoding message: " + message);
         return (message).getBytes(StandardCharsets.UTF_8);
     }
 }

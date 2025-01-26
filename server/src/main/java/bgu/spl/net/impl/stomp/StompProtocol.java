@@ -50,7 +50,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             case "DISCONNECT":
                 return handleDisconnect(frame1);
             default:
-                return handleError("Unknown command: " + command);
+                return handleError("Unknown command: " + command,-1);
         }
     }
 
@@ -61,17 +61,21 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         String username = frame.getHeaders().get("login");
         String password = frame.getHeaders().get("passcode");
         if (acceptVersion == null || host == null) {
-            return handleError("Missing accept-version or host in CONNECT frame");
+            return handleError("Missing accept-version or host in CONNECT frame",-1);
         }
 
         for (User<String> user : connections.getUsers().values()) {
             if (user.isLoggedIn() && user.getConnectionId() == connectionId) {
-                return handleError("The client is already logged in, log out before trying again\n\n^@");
+                return handleError("The client is already logged in, log out before trying again\n\n^@",-1);
             }
         }
+        
 
         if (connections.getUserDetails(username) != null && connections.getUserDetails(username).isLoggedIn()) {
-            return handleError("User already logged in\n\n^@");
+            if (!connections.checkLogin(username, password)) {
+                return handleError("Wrong password\n\n^@",-1);
+            }
+            return handleError("User already logged in\n\n^@",-1);
         }
 
         Frame connectedFrame = new Frame("CONNECTED");
@@ -79,7 +83,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             // login existing user
             logger.info("PASSWORD " + password);
             if (!connections.checkLogin(username, password)) {
-                return handleError("Wrong password\n\n^@");
+                return handleError("Wrong password\n\n^@",-1);
             }
             // login details are valid
             loginExistingUser(username);
@@ -95,10 +99,8 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             createUser(new User<String>(username, password, (ConnectionHandler)connections.getCHbyConnectionID(connectionId), connectionId));
                 connectedFrame.addHeader("version", "1.2");
                 connectedFrame.setBody(null);
-            logger.info("Sent CONNECTED frame - new user" + username);
             connections.addUserConnection(connectionId, username);
-            connections.send(connectionId, connectedFrame.toString());
-            logger.info("Sent CONNECTED frame - new user" + username + "CH is null? " + connections.getCHbyConnectionID(connectionId));
+            logger.info("Sent CONNECTED frame - new user" + username  + connections.getCHbyConnectionID(connectionId));
             return connectedFrame.toString();
             
         }
@@ -129,7 +131,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         receiptFrame.setBody(null);
 
         if (destination == null || subscriptionID == null) {
-            return handleError("Missing destination or id in SUBSCRIBE frame");
+            return handleError("Missing destination or id in SUBSCRIBE frame",-1);
         }
 
         if (connections.getChanneltoSubscriptions().containsKey(destination)){
@@ -137,7 +139,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
             for (String userSubscribed : connections.getChanneltoSubscriptions().get(destination)){
                 // for every subscriptionId, well check its not the of the current connection.
                 if (connections.getUserByConnectionId(connectionId).equals(userSubscribed)){
-                    return handleError("Already subscribed to this channel\n\n^@");
+                    return handleError("Already subscribed to this channel\n\n^@",Integer.parseInt(receiptId));
                 }
             }
         }
@@ -174,7 +176,7 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         receiptFrame.addHeader("receipt-id", receiptId);
         receiptFrame.setBody(null);
         if (subscriptionID == null || !user.isSubscriptionExist(Integer.parseInt(subscriptionID))) {
-            return handleError("Invalid or missing id in UNSUBSCRIBE frame");
+            return handleError("not subscribed to the chanel to exit",Integer.parseInt(receiptId));
         }
         Integer sId = Integer.parseInt(subscriptionID);
         String channelName = user.getChannelBySubscriptionId(sId);
@@ -191,15 +193,16 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         logger.info("DESTINATION" + destination);
 
         if (destination == null){
-            return handleError("missing destination in SEND frame");
+            return handleError("missing destination in SEND frame",-1);
         } 
         if (destination.charAt(0) == '/') {
             destination = destination.substring(1); // removing slash if exists
         }
         User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));    
         if (!user.isRegistedToChannel(destination)) {
-            return handleError("User is not subscribed to channel: " + destination);
+            return handleError("User is not subscribed to channel: " + destination,-1);
         }
+
         String bigMessage = "";
         // Broadcast message to all subscribers
         for (String userSubbed : connections.getChanneltoSubscriptions().get(destination)) {
@@ -225,10 +228,20 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         String receiptId = frame.getHeaders().get("receipt");
         if (receiptId != null) {
             Frame receiptFrame = new Frame("RECEIPT");
+            User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));
+            if(user != null){
+                user.setLoggedIn(false);
+                user.setConnectionId(-1);
+            }
             connections.disconnect(connectionId);
             receiptFrame.addHeader("receipt-id", receiptId);
             logger.info("Sent RECEIPT frame with receipt-id: " + receiptId);
             return receiptFrame.toString();
+        }
+        User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));
+        if(user != null){
+            user.setLoggedIn(false);
+            user.setConnectionId(-1);
         }
         connections.disconnect(connectionId);
         shouldTerminate = true;
@@ -236,13 +249,37 @@ public class StompProtocol implements StompMessagingProtocol<String> {
         return null;
     }
 
-    private String handleError(String errorMessage) {
-        logger.severe("Handling ERROR frame: " + errorMessage);
-        Frame errorFrame = new Frame("ERROR");
-        errorFrame.addHeader("message", errorMessage);
-        connections.disconnect(connectionId);
-        shouldTerminate = true;
-        return errorFrame.toString();
+    private String handleError(String errorMessage,int receiptId) {
+        if(receiptId != -1){
+            logger.severe("Handling ERROR frame: " + errorMessage);
+            Frame errorFrame = new Frame("ERROR");
+            errorFrame.addHeader("receipt-id",receiptId+"");
+            errorFrame.addHeader("message", errorMessage);
+            User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));
+            if(user != null){
+                user.setLoggedIn(false);
+                user.setConnectionId(-1);
+
+            }
+            connections.disconnect(connectionId);
+            shouldTerminate = true;
+            return errorFrame.toString();
+        }
+        else{
+            Frame errorFrame = new Frame("ERROR");
+            errorFrame.addHeader("receipt-id","massage-"+connections.getNewMessageID().toString());
+            errorFrame.addHeader("message", errorMessage);
+            User user = connections.getUserDetails(connections.getUserByConnectionId(connectionId));
+            if(user != null){
+                user.setLoggedIn(false);
+                user.setConnectionId(-1);
+            }
+            connections.disconnect(connectionId);
+            shouldTerminate = true;
+            return errorFrame.toString();
+
+        }
+        
     }
 
     @Override

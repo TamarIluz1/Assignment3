@@ -27,6 +27,11 @@ void KeyboardInput::start()
             continue;
         }
 
+        if (disconnectReceived.load())
+        {
+            break;
+        }
+
         try
         {
             processCommand(input);
@@ -66,7 +71,7 @@ void KeyboardInput::processCommand(const std::string &input)
 
             protocol.setUsername(username);
             protocol.setReciptCounter(0);
-            protocol.setNextSubscriptionId(0);
+            protocol.setNextSubscriptionId(-1);
             protocol.setLastReceiptId(-1);
 
             Frame connectFrame = protocol.createConnectFrame("stomp.cs.bgu.ac.il", username, password);
@@ -87,13 +92,13 @@ void KeyboardInput::processCommand(const std::string &input)
             if (serverResponse.find("CONNECTED") == 0)
             {
                 std::cout << "[INFO] Login successful!" << std::endl;
-                disconnectReceived.store(false);
             }
             else
             {
-                std::cerr << "[ERROR] Login failed: " << serverResponse << std::endl;
+                std::cerr << "[ERROR] Login failed: " << std::endl;
                 return;
             }
+            disconnectReceived.store(false);
         }
         else
         {
@@ -160,6 +165,7 @@ void KeyboardInput::processCommand(const std::string &input)
         { // Only attempt to create if there's a valid directory path
             createDirectories(dirPath);
         }
+
         std::vector<Event> events(protocol.getEventsForSummary(channelName, user));
 
         std::ofstream file(filePath, std::ios::out);
@@ -220,11 +226,17 @@ void KeyboardInput::processCommand(const std::string &input)
     }
     else if (command == "logout")
     {
-        protocol.clearEventsInChannel(nullptr);
+        std::cout << "[INFO] Try to Log out..." << std::endl;
+        protocol.clearEventsInChannel("");
 
         Frame frame = protocol.createDisconnectFrame();
         std::cout << "[INFO] Waiting for DISCONNECT receipt..." << std::endl;
-        protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0');
+        if (!protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0'))
+        {
+            std::cerr << "[ERROR] Failed to send DISCONNECT frame." << std::endl;
+            disconnectReceived.store(true);
+            return;
+        }
 
         while (!disconnectReceived.load())
         {
@@ -244,6 +256,11 @@ void KeyboardInput::processCommand(const std::string &input)
             return;
         }
 
+        if (protocol.getSubscriptionIdByChannel(channelName) == -1)
+        {
+            std::cerr << "[ERROR] You are not subscribed to the channel to send it events." << std::endl;
+            return;
+        }
         if (parsedData.events.empty())
         {
             std::cerr << "[ERROR] No events found in the JSON file." << std::endl;
@@ -262,15 +279,28 @@ void KeyboardInput::processCommand(const std::string &input)
                   { return a.get_date_time() < b.get_date_time(); });
 
         // send events to the server that user is subscribed to
-        if (!events_by_time.empty())
+
+        bool reported = true;
+        for (Event &event : events_by_time)
         {
-            for (Event &event : events_by_time)
+            event.setEventOwnerUser(protocol.getUsername());
+            Frame frame = protocol.createSendFrame(channelName, event);
+            if (!protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0'))
             {
-                event.setEventOwnerUser(protocol.getUsername());
-                Frame frame = protocol.createSendFrame(channelName, event);
-                protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0');
-                std::cout << "[INFO] Report sent to channel: " << channelName << " for event: " << event.get_name() << std::endl;
+                reported = false;
+                break;
             }
+
+            if (disconnectReceived.load())
+            {
+                reported = false;
+                break;
+            }
+            std::cout << "[INFO] Report sent to channel: " << channelName << " for event: " << event.get_name() << std::endl;
+        }
+
+        if (reported)
+        {
             std::cout << "[INFO] Reported" << std::endl;
         }
     }

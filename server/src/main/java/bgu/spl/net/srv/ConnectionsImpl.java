@@ -154,7 +154,10 @@ public class ConnectionsImpl<T> implements Connections<T> {
         return msgIdCounter.getAndIncrement();
     }
 
-    public User getUserDetails(String username){
+    public User<T> getUserDetails(String username){
+        if(username == null || !userDetails.containsKey(username)){
+            return null;
+        }
         return userDetails.get(username);
     }
 

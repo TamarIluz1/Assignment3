@@ -154,20 +154,22 @@ void StompProtocol::processFrame(const Frame &frame, std::atomic<bool> &disconne
     std::string command = frame.getCommand();
     if (command == "MESSAGE")
     {
+        std::cout << "[SERVER MESSAGE] recived massage " << std::endl;
         Event event(frame.getBody());
         std::string channelName = frame.getHeader("destination");
         std::string user = frame.getUserNameFromBody();
         storeEvent(channelName.substr(1), user, event);
-        std::cout << "[SERVER MESSAGE] " << frame.toString() << std::endl;
     }
     else if (command == "ERROR")
     {
-        std::cerr << "ERROR FROM THE SERVER:\n\n " << frame.toString() << std::endl;
+        std::cerr << "ERROR FROM THE SERVER:\n\n"
+                  << frame.toString() << std::endl;
         std::lock_guard<std::mutex> subscriptionsLock(subscriptionsMutex);
         std::lock_guard<std::mutex> eventsLock(eventsMutex);
         std::lock_guard<std::mutex> connectionLock(connectionMutex);
         subscriptions.clear();
         channelUserEvents.clear();
+        clearEventsInChannel("");
         connectionActive = false;
 
         std::cerr << "[SERVER Disconnected the Client] " << std::endl;
@@ -182,11 +184,10 @@ void StompProtocol::processFrame(const Frame &frame, std::atomic<bool> &disconne
         if (frame.getHeader("receipt-id") == std::to_string(lastReceiptId))
         {
             std::lock_guard<std::mutex> subscriptionsLock(subscriptionsMutex);
-            std::lock_guard<std::mutex> eventsLock(eventsMutex);
             std::lock_guard<std::mutex> connectionLock(connectionMutex);
             subscriptions.clear();
-            channelUserEvents.clear();
             connectionActive = false;
+            clearEventsInChannel("");
 
             std::cout << "[INFO] Logged out successfully." << std::endl;
 
@@ -272,7 +273,7 @@ void StompProtocol::clearEventsInChannel(const std::string &channelName)
 {
     std::lock_guard<std::mutex> lock(eventsMutex);
     // if its nullptr clear all events
-    if (channelName.empty())
+    if (channelName == "")
     {
         channelUserEvents.clear();
     }

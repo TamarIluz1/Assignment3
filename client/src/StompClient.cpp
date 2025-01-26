@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
 				}
 				else
 				{
-					std::cerr << "[ERROR] Login failed: " << serverResponse << std::endl;
+					std::cerr << "[ERROR] Login failed: " << std::endl;
 					continue;
 				}
 
