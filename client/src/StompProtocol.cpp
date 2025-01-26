@@ -188,7 +188,7 @@ void StompProtocol::processFrame(const Frame &frame, std::atomic<bool> &disconne
             channelUserEvents.clear();
             connectionActive = false;
 
-            std::cerr << "[SERVER Disconnected the Client] " << std::endl;
+            std::cout << "[INFO] Logged out successfully." << std::endl;
 
             disconnectReceived.store(true);
         }

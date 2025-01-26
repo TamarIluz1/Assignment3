@@ -73,7 +73,6 @@ void KeyboardInput::processCommand(const std::string &input)
             if (!(*protocol.getActiveConnectionHandler()).sendFrameAscii(connectFrame.toString(), '\0'))
             {
                 std::cerr << "[ERROR] Failed to send CONNECT frame." << std::endl;
-                disconnectReceived.store(false);
                 return;
             }
 
@@ -88,14 +87,13 @@ void KeyboardInput::processCommand(const std::string &input)
             if (serverResponse.find("CONNECTED") == 0)
             {
                 std::cout << "[INFO] Login successful!" << std::endl;
+                disconnectReceived.store(false);
             }
             else
             {
                 std::cerr << "[ERROR] Login failed: " << serverResponse << std::endl;
                 return;
             }
-
-            disconnectReceived.store(false);
         }
         else
         {
@@ -232,8 +230,6 @@ void KeyboardInput::processCommand(const std::string &input)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
-
-        std::cout << "[INFO] Logged out successfully." << std::endl;
     }
     else if (command == "report")
     {
@@ -245,12 +241,6 @@ void KeyboardInput::processCommand(const std::string &input)
         if (channelName.empty())
         {
             std::cerr << "[ERROR] No channel name found in the JSON file." << std::endl;
-            return;
-        }
-
-        if (protocol.getSubscriptionIdByChannel(channelName) == -1)
-        {
-            std::cerr << "[ERROR] You are not subscribed to the channel to send it events." << std::endl;
             return;
         }
 
@@ -276,7 +266,6 @@ void KeyboardInput::processCommand(const std::string &input)
         {
             for (Event &event : events_by_time)
             {
-
                 event.setEventOwnerUser(protocol.getUsername());
                 Frame frame = protocol.createSendFrame(channelName, event);
                 protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0');
@@ -284,28 +273,6 @@ void KeyboardInput::processCommand(const std::string &input)
             }
             std::cout << "[INFO] Reported" << std::endl;
         }
-
-        // // Assuming you want to send all events in the list
-        // if (!parsedData.events.empty())
-        // {
-        //     for (Event &event : parsedData.events)
-        //     {
-        //         event.setEventOwnerUser(protocol.getUsername());
-        //         std::string channelName = parsedData.channel_name;
-
-        //         // Create a frame using the event
-        //         Frame frame = protocol.createSendFrame(parsedData.channel_name, event);
-
-        //         // Send the frame
-        //         protocol.getActiveConnectionHandler()->sendFrameAscii(frame.toString(), '\0');
-        //         std::cout << "[INFO] Report sent to channel: " << parsedData.channel_name << " for event: " << event.get_name() << std::endl;
-        //     }
-        //     std::cout << "[INFO] Reported" << std::endl;
-        // }
-        // else
-        // {
-        //     std::cerr << "[ERROR] No events found in the JSON file." << std::endl;
-        // }
     }
     else
     {
